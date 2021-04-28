@@ -10,6 +10,7 @@
 # ---------------------------------------------------------------
 
 # Allow to cache content generation.
+override: false
 cache:
   enable: true
 
@@ -38,7 +39,7 @@ custom_file_path:
 # Schemes
 #scheme: Muse
 #scheme: Mist
-scheme: Pisces
+scheme: Gemini
 #scheme: Gemini
 
 # Dark Mode
@@ -88,17 +89,25 @@ menu:
   #schedule: /schedule/ || fa fa-calendar
   #sitemap: /sitemap.xml || fa fa-sitemap
   #commonweal: /404/ || fa fa-heartbeat
-  home: /
-  archives: /archives
+  #home: / || home
+  #archives: /archives
   #about: /about
   #categories: /categories
-  tags: /tags
+  #tags: /tags
   #commonweal: /404.html
+  home: / || home
+  about: /about/ || user
+  tags: /tags/ || tags
+  categories: /categories/ || th
+  archives: /archives/ || archive
+  #schedule: /schedule/ || calendar #日历
+  #sitemap: /sitemap.xml || sitemap #站点地图，供搜索引擎爬取
+  #commonweal: /404/ || heartbeat # 腾讯公益404
 
 # Enable / Disable menu icons / item badges.
 menu_settings:
-  icons: true
-  badges: false
+  icons: true  # 是否显示各个页面的图标
+  badges: true # 是否显示分类/标签/归档页的内容量
 
 
 # ---------------------------------------------------------------
@@ -145,7 +154,7 @@ site_state: true
 # Key is the link label showing to end users.
 # Value before `||` delimiter is the target permalink, value after `||` delimiter is the name of Font Awesome icon.
 social:
-  #GitHub: https://github.com/yourname || fab fa-github
+  GitHub: https://github.com/sys-spearmint || fab fa-github
   #E-Mail: mailto:yourname@gmail.com || fa fa-envelope
   #Weibo: https://weibo.com/yourname || fab fa-weibo
   #Google: https://plus.google.com/yourname || fab fa-google
@@ -155,6 +164,7 @@ social:
   #YouTube: https://youtube.com/yourname || fab fa-youtube
   #Instagram: https://instagram.com/yourname || fab fa-instagram
   #Skype: skype:yourname?call|chat || fab fa-skype
+  RSS: /atom.xml || fas fa-rss
 
 social_icons:
   enable: true
@@ -257,8 +267,12 @@ post_meta:
 # Post wordcount display settings
 # Dependencies: https://github.com/next-theme/hexo-word-counter
 symbols_count_time:
-  separated_meta: true
-  item_text_total: false
+  separated_meta: true #分隔符|
+  item_text_post: true #是否统计站点总字数
+  item_text_total: true #是否同级文章总字数
+  awl: 2 #平均每个字符的长度
+  wpm: 275 #words per minute
+  suffix: "mins."
 
 # Use icon instead of the symbol # to indicate the tag at the bottom of the post
 tag_icon: false
