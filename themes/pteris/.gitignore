@@ -1,0 +1,19 @@
+# Created by .ignore support plugin (hsz.mobi)
+### Sass template
+.sass-cache/
+*.css.map
+
+node_modules/
+bower_components/
+*.log
+
+_config.yml
+
+build/
+/source/lib/
+/source/image/
+!/source/lib/animate.css/animate.min.css
+!/source/lib/**/dist/
+!/source/lib/highlight/src/highlight.*js
+
+layout/includes/site.txt
