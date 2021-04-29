@@ -41,7 +41,7 @@ external_link:
   exclude: ''
 filename_case: 0 #把博客名称改成小写/大写（1,2）
 render_drafts: false # 是否显示草稿
-post_asset_folder: false #是否启用资源文件夹（用来存放相对路径图片或文件）
+post_asset_folder: true #是否启用资源文件夹（用来存放相对路径图片或文件）
 relative_link: false # 把链接改为与根目录的相对位址
 future: true
 highlight:
