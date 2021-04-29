@@ -1,5 +1,6 @@
 ---
 title: Mysql索引
+categories: Mysql
 ---
 
 ```tex

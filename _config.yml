@@ -132,6 +132,13 @@ feed:
 
 theme: next
 
+# Search Config
+search:
+  path: search.xml
+  field: post
+  format: html
+  limit: 100
+
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:

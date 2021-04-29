@@ -1,5 +1,6 @@
+---
 title: Java Security & Spring Security
-
+categories: Spring
 ---
 
 # Java Security
@@ -142,7 +143,7 @@ DelegatingFilterProxy 是 Spring Web 为应用提供的用于桥接 Servlet Filt
 
 ### 初始化
 
-```
+```java
 initFilterBean()
 protected void initFilterBean() throws ServletException {
 		synchronized (this.delegateMonitor) {
@@ -150,10 +151,11 @@ protected void initFilterBean() throws ServletException {
 			if (this.delegate == null) {
 				// 如果 Filter 对象为空，则获取 targetBeanName
 				if (this.targetBeanName == null) {
-          // 获取 target bean name, 先从 filterConfig 中获取 filter name，如果 filterConfig 为空则使用 GenericFilterBean#beanName
+          			// 获取 target bean name, 先从 filterConfig 中获取 filter name，
+          			// 如果 filterConfig 为空则使用 GenericFilterBean#beanName
 					this.targetBeanName = getFilterName();
 				}
-        // 获取 WebApplicationContext 
+        		// 获取 WebApplicationContext 
 				WebApplicationContext wac = findWebApplicationContext();
 				if (wac != null) {
 					// 根据名称和类型查找 Filter
@@ -175,7 +177,7 @@ protected WebApplicationContext findWebApplicationContext() {
 			}
 			return this.webApplicationContext;
 		}
-    // 从 ServletContext 中获取 WebApplicationContext
+    	// 从 ServletContext 中获取 WebApplicationContext
 		String attrName = getContextAttribute();
 		if (attrName != null) {
 			return WebApplicationContextUtils.getWebApplicationContext(getServletContext(), attrName);
@@ -186,7 +188,7 @@ protected WebApplicationContext findWebApplicationContext() {
 	}
 initDelegate(WebApplicationContext wac)
 protected Filter initDelegate(WebApplicationContext wac) throws ServletException {
-    // 根据 bean name 和 Filter 类型依赖查找 WebApplicationContext
+    	// 根据 bean name 和 Filter 类型依赖查找 WebApplicationContext
 		String targetBeanName = getTargetBeanName();
 		Assert.state(targetBeanName != null, "No target bean name set");
 		Filter delegate = wac.getBean(targetBeanName, Filter.class);
@@ -216,7 +218,7 @@ protected Filter initDelegate(WebApplicationContext wac) throws ServletException
 ![Spring-SecurityConfig](Security/Spring-SecurityConfig.png)
 
 - `ContextLoaderListener` 创建根应用程序上下文
-- `DispatcherServlet` 条目为每个 servlet 条目创建一个子应用程序上下文
+- `DispatcherServlet` 为每个 servlet 创建一个子应用程序上下文
 - 子上下文可以访问根上下文中定义的 bean
 - 根上下文中的 Bean 无法直接访问子上下文中的 bean
 - 所有上下文都被添加到 ServletContext
@@ -281,7 +283,7 @@ public final void init(FilterConfig filterConfig) throws ServletException {
 				// 交于子类定制 BeanWrapper
 				initBeanWrapper(bw);
 				// 将 PropertyValues 注入到属性
-****				bw.setPropertyValues(pvs, true);
+				bw.setPropertyValues(pvs, true);
 			}
 			catch (BeansException ex) {
 				String msg = "Failed to set bean properties on filter '" +
@@ -308,7 +310,7 @@ FilterChainProxy 是 Spring Security 提供的一个特殊的 Filter，它允许
 
 ### 代码结构
 
-```
+```java
 doFilter()
 @Override
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -560,7 +562,7 @@ static void registerFilterChainProxyIfNecessary(ParserContext pc, Object source)
 		requestRejected.addConstructorArgValue(BeanIds.FILTER_CHAIN_PROXY);
 		requestRejected.addConstructorArgValue("requestRejectedHandler");
 		AbstractBeanDefinition requestRejectedBean = requestRejected.getBeanDefinition();
-    // 生成 bean name
+    	// 生成 bean name
 		String requestRejectedPostProcessorName = pc.getReaderContext().generateBeanName(requestRejectedBean);
 		// 注册 bean
 		registry.registerBeanDefinition(requestRejectedPostProcessorName, requestRejectedBean);
