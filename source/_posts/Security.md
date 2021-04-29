@@ -453,11 +453,11 @@ SecurityFilterChain` 唯一实现类 `org.springframework.security.web.DefaultSe
 
 ## 委托关系
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F378224ad-b991-4914-b6e2-702c9fa2a7a1%2FUntitled.png?table=block&id=e8165f0d-578f-49bf-8500-385923c6095e&width=1340&userId=&cache=v2)
+![img](security/delegate relation.png)
 
 ### SecurityFilterChain 选择
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fe31f9f27-aa14-4903-92a0-8cac2df2e905%2FUntitled.png?table=block&id=87f10436-5b07-46ad-bec9-9ad43b0c6f4a&width=960&userId=&cache=v2)
+![img](security/SecurityFilterChain.png)
 
 ### 说明
 
@@ -653,20 +653,20 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 ```
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F2c9ba211-94f7-4b51-be3c-091582574288%2FUntitled.png?table=block&id=45be2fba-f497-4ca9-bec9-c5f97340836c&width=3890&userId=&cache=v2)
+![img](security/1.png)
 
 - debug 可以看到 order 为 9998 且开启 csrf 的 config 放在首位，path /disable/*
 - 第二个为 9999 且关闭 csrf 的 config，path：/disable/*
 - 第三个为10000 开启 csrf 的 config，path：/enable
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fbe93d3e1-47e8-4947-8dfb-c2d93b7df844%2FUntitled.png?table=block&id=e1c63b67-911a-45b3-bd89-7209b8d7e39b&width=1200&userId=&cache=v2)
+![img](security/7.png)
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fab78b25c-99a1-4822-926c-39efd8b1cfa1%2FUntitled.png?table=block&id=9a5ca75d-746f-4e04-96b8-6dc2bd5a7f31&width=2200&userId=&cache=v2)
+![img](security/8.png)
 
 - 请求 /disable/2 时，会进入 `org.springframework.security.web.FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)` 方法。
 - 遍历选择 `SecurityFilterChain` 时，会返回第一个被命中的。
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F63d0cfbb-fd6f-40e4-b77b-d50f1a81b673%2FUntitled.png?table=block&id=0dea387b-e4b5-4397-81f3-adc04c43c888&width=1840&userId=&cache=v2)
+![img](security/3.png)
 
 **由上面测试可得出，当设置相同RequestMatcher 的不同 `SecurityFilterChain` （安全策略）时，会根据应用程序定义的顺序选择，顺序优先的将被执行，排在后面的不会被执行。**
 
@@ -676,7 +676,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
 - **Spring IoC  容器管理，SecurityFilterChain 关联的 Filters 基本都继承了 GenericFilterBean，而 GenericFilterBean 实现的 Servlet Filter `init(FilterConfig filterConfig)` 方法未曾被子类覆盖，而且 `GenericFilterBean#init(FilterConfig filterConfig)` 方法中调用的模板方法 `initFilterBean()` 仅被 `DelegatingFilterProxy` 实现，如下图。**
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F64d734f0-8084-404a-9522-57393e447ec9%2FUntitled.png?table=block&id=0d29d36c-1cb5-4110-8a36-c120f003e8d6&width=1920&userId=&cache=v2)
+![img](security/4.png)
 
 - **SecurityFilterChain 关联的 Filters 由 `FilterComparator` 创建， `FilterComparator` 被 `HttpSecurity` 创建，而 `HttpSecurity` 是被Spring IoC 容器管理生命周期。**
 
@@ -741,9 +741,9 @@ HttpSecurity httpSecurity() throws Exception {
 }
 ```
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F02daebbb-b824-496a-bd49-ead8802e44ca%2FUntitled.png?table=block&id=cc652bfa-1497-4694-ba61-c6f21328ce7c&width=960&userId=&cache=v2)
+![img](security/5.png)
 
-![img](https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F3a8b3441-a9aa-4eb2-a7e2-af512db6c862%2FUntitled.png?table=block&id=6e81be00-f7cb-4c13-a0ff-5b1d9be1c8ba&width=2020&userId=&cache=v2)
+![img](security/6.png)
 
 HttpSecurity 是通过原型模式生成的，因此应用每次生成 `SecurityFilterChain`  Bean 时，注入的 HttpSecurity 都为不同对象。
 
