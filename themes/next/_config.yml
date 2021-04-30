@@ -245,7 +245,7 @@ footer:
 # ---------------------------------------------------------------
 
 # Automatically excerpt description in homepage as preamble text.
-excerpt_description: true
+excerpt_description: false
 
 # Read more button
 # If true, the read more button will be displayed in excerpt section.
@@ -733,13 +733,20 @@ firestore:
 # Show Views / Visitors of the website / page with busuanzi.
 # For more information: http://ibruce.info/2015/04/04/busuanzi/
 busuanzi_count:
-  enable: true #是否开启不蒜子统计功能
-  total_visitors: true #是否统计总访客数
-  total_visitors_icon: fa fa-user #访客数图标为人像
-  total_views: true #是否同级总访问数
-  total_views_icon: fa fa-eye eye #访问数图标为眼睛
-  post_views: true #是否统计文章访问数
-  post_views_icon: far fa-eye eye #访问数图标为眼睛
+  #是否开启不蒜子统计功能
+  enable: true
+  #是否统计总访客数
+  total_visitors: true
+  #访客数图标为人像
+  total_visitors_icon: fa fa-user
+  #是否同级总访问数
+  total_views: true
+  #访问数图标为眼睛
+  total_views_icon: fa fa-eye eye
+  #是否统计文章访问数
+  post_views: true
+  #内容页阅读数的图标
+  post_views_icon: far fa-eye eye
 
 # ---------------------------------------------------------------
 # Search Services
