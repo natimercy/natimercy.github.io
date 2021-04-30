@@ -14,7 +14,7 @@ timezone: Asia/Shanghai #中国的时区，不要乱改城市
 
 # URL
 ## Set your site url here. For example, if you use GitHub Page, set url as 'https://username.github.io/project'
-url: http://example.com
+url: https://sys-spearmint.github.io/
 permalink: :year/:month/:day/:title/
 permalink_defaults:
 pretty_urls:
@@ -108,7 +108,7 @@ ignore:
 symbols_count_time:
   symbols: true  # 文章字数统计
   time: true  # 文章阅读时间统计
-  total_symbols: false  # 站点总字数统计
+  total_symbols: true  # 站点总字数统计
   total_time: false  # 站点总阅读时间统计
   exclude_codeblock: false
 
@@ -138,6 +138,22 @@ search:
   field: post
   format: html
   limit: 100
+
+live2d:
+  enable: true
+  scriptFrom: local
+  pluginRootPath: live2dw/
+  pluginJsPath: lib/
+  pluginModelPath: assets/
+  tagMode: false
+  model:
+    use: live2d-widget-model-koharu  #选择哪种模型
+  display: #放置位置和大小
+    position: right
+    width: 150
+    height: 300
+  mobile:
+    show: false #是否在手机端显示
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment

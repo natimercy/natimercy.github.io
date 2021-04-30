@@ -1,7 +1,18 @@
 ---
 title: Java Security & Spring Security
-categories: Spring
+copyright: true
+date: 2021-04-29 10:00:00
+updated: 2021-04-30 10:00:00
+tags: 
+	- Java
+	- Spring
+categories: 
+	- Java	
+	- Spring
+comments: true
 ---
+
+<!--more-->
 
 # Java Security
 
@@ -749,7 +760,7 @@ HttpSecurity httpSecurity() throws Exception {
 
 HttpSecurity 是通过原型模式生成的，因此应用每次生成 `SecurityFilterChain`  Bean 时，注入的 HttpSecurity 都为不同对象。
 
-`**SecurityFilterChain` 的顺序说明，当RequestMatcher 相同时**
+`SecurityFilterChain` 的顺序说明，当RequestMatcher 相同时
 
 - 可通过 `@Order` 注明每个 `SecurityFilterChain` Bean 的顺序，该顺序将影响`FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)` 的筛选，首先被命中的`SecurityFilterChain` 作为执行者，后面的将不被执行。
 - 同 Configuration 类中定义不同的 `SecurityFilterChain` Bean 且未标明顺序或顺序标注相同时，以方法定义的顺序由上往下存储在 `FilterChainProxy#filterChains`中。
