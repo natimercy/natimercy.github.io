@@ -1,5 +1,5 @@
 ---
-title: Mysql索引
+title: Mysql index
 categories: Mysql
 ---
 

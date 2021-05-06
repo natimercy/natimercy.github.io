@@ -46,7 +46,7 @@ relative_link: false # 把链接改为与根目录的相对位址
 future: true
 highlight:
   enable: true #是否开启代码高亮
-  line_number: true true #是否增加代码行号
+  line_number: true #是否增加代码行号
   auto_detect: true #自动判断代码语言
   tab_replace: ''
   wrap: true
@@ -140,7 +140,7 @@ search:
   limit: 100
 
 live2d:
-  enable: true
+  enable: false
   scriptFrom: local
   pluginRootPath: live2dw/
   pluginJsPath: lib/
