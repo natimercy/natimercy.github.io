@@ -2,7 +2,7 @@
 title: Mysql architecture and SQL execution process
 copyright: true
 date: 2021-04-30 23:00:00
-updated: 2021-05-01 10:00:00
+updated: 2021-05-09 10:00:00
 tags:
 	- Mysql	
 categories:
@@ -486,7 +486,7 @@ show variables like finnodb_log%!;
 
 ### Undo log
 
-undo log（撤销日志或回滚日志）记录了事务发生之前的数据状态，分为insert undo log和update undo logo如果修改数据时出现异常，可以用undo log来实现回滚操作 （保持原子性）O
+undo log（撤销日志或回滚日志）记录了事务发生之前的数据状态，分为insert undo log和update undo logo如果修改数据时出现异常，可以用undo log来实现回滚操作 （保持原子性）。
 
 可以理解为undo log记录的是反向的操作，比如insert会记录delete, update 会记录update原来的值，跟redolog记录在哪个物理页面做了什么操作不同，所以叫 做逻辑格式的日志。
 
@@ -534,7 +534,7 @@ update user set name = 'penyuyan' where id=l;
 
 Buffer Pool 主要分为3个部分：`Buffer Pool`、`Change Buffer`、`Adaptive Hash Index`, 另外还有一个 `(redo) log buffero`
 
- 1、Buffer Pool
+#### Buffer Pool
 
 Buffer Pool缓存的是页面信息，包括数据页、索引页。
 
@@ -574,11 +574,251 @@ SHOW STATUS LIKE '%innodb_buffer_pool%';
 
 内存的缓冲池写满了怎么办？ （Redis设置的内存满了怎么办？）InnoDB用LRU 算法来管理缓冲池（链表实现，不是传统的LRU,分成了 young和old）,经过淘汰的 数据就是热点数据。
 
-### LRU
+#### LRU
+
+传统LRU,可以用Map+链表实现。value存的是在链表中的地址。
+
+![image-20210501010707747](Mysql架构与SQL执行流程/image-20210430005830805.png)
+
+首先，InnoDB中确实使用了一个双向链表，LRU list，但是这个LRU list放的不是data page，而是指向缓存页的指针，如果写buffer pool的时候没有空闲页了，就要从buffer pool 中淘汰数据页了，它要根据LRU链表的数据来操作。
+
+这样是不是很和谐？
+
+首先，InnoDB的数据页并不是都是在访问的时候才缓存到buffer pool的。
+
+InnoDB有一个预读机制（read ahead）。也就是说，设计者认为访问某个page 的数据的时候，相邻的一些page可能会很快被访问到，所以先把这些page放到buffer pool中缓存起来。首先，InnoDB的数据页并不是都是在访问的时候才缓存到buffer pool的。
+
+https://dev.mysql.com/doc/refman/8.0/en/innodb-performance-read_ahead.html
+
+这种预读的机制又分为两种类型，一种叫线性预读（异步的）（Linear read-ahead）。为了便于管理，InnoDB中把64个相邻的page叫做一个extent （区）。如果顺序地访 问了一个extent的56个page,这个时候InnoDB就会把下一个extent （区）缓存到buffer pool 中。顺序访问多少个page才缓存下一个extent,由一个参数控制:
+
+```mysql
+show variables like 'Innodb_read_ahead_threshold';
+```
+
+第二种叫做随机预读（Random read-ahead）,如果buffer pool已经缓存了同一个extent （区）的数据页的个数超过13时，就会把这个extent剩余的所有page全部缓存到buffer pool。
+
+```mysql
+show variables like 'innodb_random_read_ahead,
+```
+
+很明显，线性预读或者异步预读，能够把可能即将用到的数据提前加载到buffer pool,肯定能提升I/O的性能，所以是一种非常有用的机制。但是预读肯定也会带来一些副作用，就是导致占用的内存空间更多，剩余的空 闲页更少。如果说buffer pool size不是很大，而预读的数据很多，很有可能那些 真正的需要被缓存的热点数据被预读的数据挤出buffer pool,淘汰掉了。下次访 问的时候又要先去磁盘。
+
+所以问题就来了**，**怎么让这些真正的热点数据不受到预读的数据的影响呢？
+
+我想了一个办法,干脆把LRU list分成两部分，靠近head的叫做new sublist, 用来放热数据（我们把它叫做热区）。靠近tail的叫做。oId sublist,用来放冷数据 俄们把它叫做冷区）。中间的分割线叫做midpoint，也就是对buffer pool做 一个冷热分离。
+
+<img src="https://dev.mysql.com/doc/refman/8.0/en/images/innodb-buffer-pool-list.png" alt="innodb-buffer-pool-list" style="zoom: 67%;" />
+
+所有新数据加入到buffer pool的时候，一律先放到冷数据区的head,不管是 预读的，还是普通的读操作。所以如果有一些预读的数据没有被用到，会在old sublist （冷区）直接被淘汰。放到LRU List以后，如果再次被访问，都把它移动到热区的head。如果热区的数据长时间没有被访问，会被先移动到冷区的head部，最后慢慢 在tail被淘汰。
+
+在默认情况下，热区占了 5/8的大小，冷区占了 3/8,这个值由innodb_old_blocks_pct控制，它代表的是old区的大小,默认是37%也就是3/8。innodb_old_blocks_pct的值可以调整，在5%到95%之间，这个值越大，new区越小，这个LRU算法就接近传统LRU。如果这个值太小，old区没有被访问的速度淘汰会更快。
+
+##### OK,预读的问题，通过冷热分离解决了，还有没有其他的问题呢？
+
+我们先把数据放到冷区，用来避免占用热数据的存储空间。但是如果刚加载到 冷区的数据立即被访问了一次，按照原来的逻辑，这个时候我们会马上把它移动至U 热区。假设这一次加载然后被立即访问的冷区数据量非常大，比如我们查询了一张几 千万数据的大表，没有使用索引，做了一个全表扫描。或者，dump全表备份数据,这种查询属于短时间内访问，后面再也不会用到了。如果短时间之内被访问了一次，导致它们全部被移动到热区的head,它会导致很多热点数据被移动到冷区甚至被淘汰，造成了缓冲池的污染。
+
+##### 这个问题我们又怎么解决呢？
+
+那我们得想一个办法，对于加载到冷区然后被访问的数据，设置一个时间窗口, 只有超过这个时间之后被访问，我们才认为它是有效的访问。
+
+也就是说1秒钟之内被访问的，不算数，待在冷区不动。只有1秒钟以后被访问的, 才从冷区移动到热区的head。
+
+这样就可以从很大程度上避免全表扫描或者预读的数据污染真正的热数据。
+
+似乎比较完美了。
+
+这样的算法，还有没有可以优化的空间呢？
+
+为了避免并发的问题，对于LRU链表的操作是要加锁的。也就是说每一次链表 的移动，都会带来资源的竞争和等待。从这个角度来说，如果要进一步提升InnoDB LRU的效率，就要尽量地减少LRU链表的移动。
+
+比如，把热区一个非常靠近head的page移动到head,有没有这个必要呢？ 所以InnoDB对于new区还有一个特殊的优化：
+
+如果一个缓存页处于热数据区域，且在热数据区域的前1/4区域（注意是热 数据区域的1/4,不是整个链表的1/4）,那么当访问这个缓存页的时候，就不用 把它移动到热数据区域的头部；如果缓存页处于热区的后3/4区域，那么当访问 这个缓存页的时候，会把它移动到热区的头部。
+
+内存缓冲区对于提升读写性能有很大的作用。思考一个问题：
+
+当需要更新一个数据页时,如果数据页在Buffer Pool中存在，那么就直接更新好了。 否则的话就需要从磁盘加载到内存，再对内存的数据页进行操作。也就是说，如果 没有命中缓冲池，至少要产生一次磁盘IO。
+
+#### Change Buffer缓冲
+
+Change Buffer 是 Buffer Pool 的一部分。
+
+如果这个数据页不是唯一索引，不存在数据重复的情况，也就不需要从磁盘加载索 引页判断数据是不是重复（唯一性检查）。这种情况下可以先把修改记录在内存的缓冲 池中，从而提升更新语句（Insert. Delete. Update）的执行速度。
+
+这一块区域就是Change Buffero 5.5之前叫Insert Buffer插入缓冲，现在也能支 持 delete 和 update。
+
+最后把Change Buffer记录到数据页的操作叫做merge。什么时候发生merge? 有几种情况：在访问这个数据页的时候，或者通过后台线程、或者数据库shut down、 redo log写满时触发。
+
+如果数据库大部分索引都是非唯一索引，并且业务是写多读少，不会在写数据后立 刻读取，就可以使用Change Buffer （写缓冲）。
+
+可以通过调大这个值，来扩大Change的大小，以支持写多读少的业务场景。
+
+```mysql
+SHOW VARIABLES LIKE 'innodb_change_buffer_max_size';
+```
+
+> 代表 Change Buffer 占 Buffer Pool 的比例，默认 25%。
+>
+
+#### Adaptive Hash Index
 
 
 
+#### Redo Log Buffer
 
+
+
+Redo log也不是每一次都直接写入磁盘，在Buffer Pool里面有一块内存区域(Log Buffer)专门用来保存即)镀写入日志文件的数据，默认16M,它一样可以节省磁盘IO。
+
+<img src="Mysql架构与SQL执行流程/image-20210430005830806.png" alt="image-20210501010707747" style="zoom:67%;" />
+
+```mysql
+SHOW VARIABLES LIKE 'innodb_log_buffer_size‘;
+```
+
+>需要注意：redo log的内容主要是用于崩溃恢复。磁盘的数据文件，数据来自buffer pooL redo log写入磁盘，不是写入数据文件。
+
+#### Log Buffer什么时候写入log file?
+
+在我们写入数据到磁盘的时候，操作系统本身是有缓存的。flush就是把操作系统缓 冲区写入到磁盘。log buffer写入磁盘的时机，由一个参数控制，默认是1。
+
+```mysql
+SHOW VARIABLES LIKE 'innodb_flush_log_at_trx_commit';
+```
+
+| 0 （延退写）                | log buffer将每秒一次地写入log file中,并且log file的flush操作同时进行。 该模式下，在事务提交的时候，不会主动触发写入磁盘的操作。 |
+| --------------------------- | ------------------------------------------------------------ |
+| 1 （默认，实时 写，实时刷） | 每次事务提交时MySQL都会把log buffer的数据写入log file,并且刷到磁盘 中去。 |
+| 2 （实时写，延 退刷）       | 每次事务提交时MySQL都会把log buffer的数据写入log file。但是flush操 作并不会同时进行。该模式下，MySQL会每秒执行一次也sh操作。 |
+
+> 刷盘越快，越安全，但是也会越消耗性能。
+>
+> MySQL的内存结构，分为:Buffer pool、change buffer、Adaptive Hash Index、 log buffer。
+
+
+
+### 磁盘结构
+
+表空间可以看做是InnoDB存储引擎逻辑结构的最高层，所有的数据都存放在表空 间中。InnoDB的表空间分为5大类。
+
+#### 系统表空间 （system tablespace）
+
+在默认情况下InnoDB存储引擎有一个共享表空间（对应文件/var/lib/mysql/ ibdata1，也叫系统表空间。
+
+InnoDB系统表空间包含InnoDB数据字典和双写缓冲区， Change Buffer和Undo Logs,如果没有指定file-per-table,也包含用户创建的表和索引数据。
+
+- undo在后面介绍，因为也可以设置独立的表空间
+
+- 数据字典：由内部系统表组成，存储表和索弓I的元数据（定义信息）。
+
+- 双写缓冲（InnoDB的一大特性）：InnoDB的页和操作系统的页大小不一致，InnoDB页大小一般为16K，操作系统页 大小为4K，InnoDB的页写入到磁盘时，一个页需要分4次写。
+
+  ~~图略~~
+
+如果存储引擎正在写入页的数据到磁盘时发生了宕机，可能出现页只写了一部分的 情况，比如只写了 4K，就宕机了，这种情况叫做部分写失效(partial page write)，可 能会导致数据丢失。
+
+```mysql
+show variables like 'Innodb_doublewrite';
+```
+
+我们不是有redo log吗？但是有个问题，如果这个页本身已经损坏了，用它来做崩 溃恢复是没有意义的。所以在对于应用red。log之前，需要一个页的副本。如果出现了 写入失效,就用页的副本来还原这个页，然后再应用redo log。这个页的副本就是double write, InnoDB的双写技术。通过它实现了数据页的可靠性。
+
+跟redo log —样,double write由两部分组成，一部分是内存的double write, —个部分是磁盘上的double write0因为double write是顺序写入的，不会带来很大的 开销。
+
+在默认情况下，所有的表共享一个系统表空间，这个文件会越来越大，而且它的空 间不会收缩。
+
+#### 独占表空间（ file-per-tabletablespaces）
+
+我们可以让每张表独占一个表空间。这个开关通过innodb_file_per_table设置，默 认开启。
+
+```mysql
+SHOW VARIABLES LIKE 'innodb_file_per_table';
+```
+
+开启后，则每张表会开辟一个表空间，这个文件就是数据目录下的ibd文件(例如`/var/lib/mysql/test/user_innodb.ibd`，存放表的索引和数据。但是其他类的数据，如回滚(undo)信息，插入缓冲索引页、系统事务信息，二次写缓冲(Double write buffer)等还是存放在原来的共享表空间内。
+
+#### 通用表空间 （general tablespaces）
+
+通用表空间也是一种共享的表空间，跟ibdatal类似。可以创建一个通用的表空间，用来存储不同数据库的表，数据路径和文件可以自定 义。语法：
+
+```mysql
+create tablespace ts2673 add datafile 'var/lib/mysql/ts2673.ibd' file_block_size= 16K engine=innodb;
+```
+
+在创建表的时候可以指定表空间，用ALTER修改表空间可以转移表空间。
+
+```mysql
+create table t2673(id integer) tablespace ts2673;
+```
+
+> 不同表空间的数据是可以移动的。
+
+删除表空间需要先删除里面的所有表
+
+```mysql
+drop table t2673;
+drop tablespace ts2673;
+```
+
+#### 临时表空间（ temporary tablespaces）
+
+存储临时表的数据，包括用户创建的临时表，和磁盘的内部临时表。对应数据目录 下的ibtmpl文件。当数据服务器正常关闭时，该表空间被删除，下次重新产生。
+
+#### undo log表空间（ undo log tablespace）
+
+undo Log的数据默认在系统表空间ibdatal文件中，因为共享表空间不会自动收缩，也可以单独创建一个undo表空间。
+
+
+
+### 后台线程
+
+后台线程的主要作用是负责刷新内存池中的数据和把修改的数据页刷新到磁盘。后台线程分为：master thread，IO thread，purge thread，page cleaner thread。
+
+- master thread负责刷新缓存数据到磁盘并协调调度其它后台进程。
+
+- IO thread 分为 insert buffer、log、read、write 进程。分别用来处理 insert buffer. 重做日志、读写请求的io回调。
+
+- purge thread 用来回收 undo 页。
+
+- page cleaner thread用来刷新脏页。
+
+- 除了 InnoDB架构中的日志文件，MySQL的Server层也有一个日志文件，叫做 binlog,它可以被所有的存储引擎使用。
+
+  
+
+## binlog
+
+binlog以事件的形式记录了所有的DDL和DML语句（因为它记录的是操作而不是数据值，属于逻辑日志)，可以用来做主从复制和数据恢复。跟redo log不一样，它的文件内容是可以追加的，没有固定大小限制。在开启了 binlog功能的情况下，我们可以把binlog导出成SQL语句，把所有的操作重放一遍，来实现数据的恢复。binlog的另一个功能就是用来实现主从复制，它的原理就是从服务器读取主服务器的binlog,然后执行一遍。
+
+> 配置方式和主从复制的实现原理
+
+有了这两个日志之后，我们来看一下一条更新语句是怎么执行的（redo不能一次写入了）
+
+~~图略~~
+
+例如一条`sql`语句
+
+```mysql
+update teacher set name='test' where id=1;
+```
+
+- 先查询到这条数据，如果有缓存，也会用到缓存。
+
+- 把name改成盆鱼宴，然后调用引擎的API接口，写入这一行数据到内存， 同时记录redo logo这时redo log进入prepare状态，然后告诉执行器，执行完成了，可以随时提交。
+
+- 执行器收到通知后记录binlog,然后调用存储引擎接口，设置red。log为 commit 状态。
+- 更新完成。
+
+这张图片的重点：
+
+- 先记录到内存，再写日志文件。
+
+- 记录redo log分为两个阶段。
+
+- 存储引擎和Server记录不同的日志。
+
+- 先记录redo，记录binlog。
 
 ### 未完待续。。。
 
@@ -626,3 +866,27 @@ set autocommit = on;
 所以，如果只是临时修改，建议修改session级别。 如果需要在其他会话中生效，必须显式地加上global参数。
 
 ### Q2：执行一条查询语句，客户端跟服务端建立连接之后呢？下一步要做什么？
+
+### Q3：为什么需要两阶段提交？
+
+举例：
+
+如果我们执行的是把name改成`test`，如果写完redo log,还没有写binlog的 时候，MySQL重启了。
+
+因为red。log可以在重启的时候用于恢复数据，所以写入磁盘的是盆鱼宴。但是 binlog里面没有记录这个逻辑日志，所以这时候用binlog去恢复数据或者同步到从库, 就会出现数据不一致的情况。
+
+所以在写两个日志的情况下，binlog就充当了一个事务的协调者。通知InnoDB来 执行 prepare 或者 commit 或者 rollback。
+
+如果第⑥步写入binlog失败，就不会提交。
+
+简单地来说，这里有两个写日志的操作，类似于分布式事务，不用两阶段提交，就
+
+不能保证都成功或者都失败。
+
+在崩溃恢复时，判断事务是否需要提交：
+
+- binlog无记录，redo log无记录，在redolog写之前crash，恢复操作，回滚事务。
+
+- binlog无记录，redo log状态prepare，在binlog写完之前的crash，恢复操作，回滚事务。
+- binlog有记录，redol og状态prepare，在binlog写完提交事务之前的crash，恢复操作，提交事务。
+- binlog有记录，redolog状态commit，正常完成的事务，不需要恢复。
