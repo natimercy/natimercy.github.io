@@ -95,6 +95,7 @@ menu:
   tags: /tags/ || fa fa-tags
   categories: /categories/ || fa fa-th
   archives: /archives/ || fa fa-archive
+  #guestbook: /guestbook/ || fa fa-book
   #schedule: /schedule/ || calendar #日历
   #sitemap: /sitemap.xml || sitemap #站点地图，供搜索引擎爬取
   #commonweal: /404/ || heartbeat # 腾讯公益404
@@ -627,8 +628,8 @@ disqusjs:
 # For more information: https://changyan.kuaizhan.com
 changyan:
   enable: false
-  appid:
-  appkey:
+  appid: cyvs9WpBu
+  appkey: 499bae8987cd3d6c787afcdacabb8ed9
 
 # LiveRe comments system
 # You can get your uid from https://livere.com/insight/myCode (General web site)
@@ -637,12 +638,12 @@ livere_uid: # <your_uid>
 # Gitalk
 # For more information: https://gitalk.github.io
 gitalk:
-  enable: false
-  github_id: # GitHub repo owner
-  repo: # Repository name to store issues
-  client_id: # GitHub Application Client ID
-  client_secret: # GitHub Application Client Secret
-  admin_user: # GitHub repo owner and collaborators, only these guys can initialize gitHub issues
+  enable: true
+  github_id: sys-spearmint  # GitHub repo owner
+  repo: sys-spearmint.github.io  # Repository name to store issues
+  client_id: 8d0f8787ee6ed1053e64  # GitHub Application Client ID
+  client_secret: 534a5325ca4b7dcaba9a27bb026b99a3a7d410d6  # GitHub Application Client Secret
+  admin_user: sys-spearmint  # GitHub repo owner and collaborators, only these guys can initialize gitHub issues
   distraction_free_mode: true # Facebook-like distraction free mode
   # When the official proxy is not available, you can change it to your own proxy address
   proxy: https://cors-anywhere.herokuapp.com/https://github.com/login/oauth/access_token # This is official proxy adress
