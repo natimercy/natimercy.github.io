@@ -1,13 +1,21 @@
 ---
 title: Mysql index
-categories: Mysql
+copyright: true
+date: 2021-04-27 23:00:00
+updated: 2021-04-27 23:00:00
+tags:
+    - Mysql
+categories:
+    - Mysql
 ---
 
-```tex
-前言：explain（执行计划），使用explain关键字可以模拟优化器执行sql查询语句，从而知道MySQL是如何处理sql语句。explain主要用于分析查询语句或表结构的性能瓶颈。
+## 前言
 
-注：本系列随笔如无特殊说明都MySQL版本都为5.7.22。
-```
+>前言：explain（执行计划），使用explain关键字可以模拟优化器执行sql查询语句，从而知道MySQL是如何处理sql语句。explain主要用于分析查询语句或表结构的性能瓶颈。
+>
+>注：本系列随笔如无特殊说明都MySQL版本都为5.7.22。
+
+<!--more-->
 
 | id                |
 | ----------------- |
