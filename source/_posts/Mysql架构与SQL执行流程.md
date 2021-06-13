@@ -2,16 +2,20 @@
 title: Mysql architecture and SQL execution process
 copyright: true
 date: 2021-04-30 23:00:00
-updated: 2021-05-09 10:00:00
+updated: 2021-06-13 15:26:00
 tags:
 	- Mysql	
 categories:
     - Mysql
 ---
 
+## 前言
 
+>通过篇文章可以了解到Mysql语句的执行流程，理解Mysql的架构与内部模块，掌握InnoDB存储引擎的磁盘与内存结构。
 
 <!--more-->
+
+
 
 ## 一条查询SQL语句是如何执行的
 
@@ -795,7 +799,7 @@ binlog以事件的形式记录了所有的DDL和DML语句（因为它记录的�
 
 有了这两个日志之后，我们来看一下一条更新语句是怎么执行的（redo不能一次写入了）
 
-~~图略~~
+<img src="Mysql架构与SQL执行流程/image-20210430005830807.png" alt="image-20210501010707747" style="zoom:67%;" />
 
 例如一条`sql`语句
 
@@ -819,8 +823,6 @@ update teacher set name='test' where id=1;
 - 存储引擎和Server记录不同的日志。
 
 - 先记录redo，记录binlog。
-
-### 未完待续。。。
 
 
 
@@ -865,9 +867,7 @@ set autocommit = on;
 
 所以，如果只是临时修改，建议修改session级别。 如果需要在其他会话中生效，必须显式地加上global参数。
 
-### Q2：执行一条查询语句，客户端跟服务端建立连接之后呢？下一步要做什么？
-
-### Q3：为什么需要两阶段提交？
+### Q2：为什么需要两阶段提交？
 
 举例：
 
