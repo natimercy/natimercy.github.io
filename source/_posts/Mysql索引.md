@@ -27,11 +27,11 @@ categories:
 
 ### 索引类型
 
-那在我们的数据表上面，我们怎么去创建一个索引呢？我们打开工具Navicat，右键设计表，在索引的这个选项卡里面，我们可以创建索引。
+那在我们的数据表上面，我们怎么去创建一个索引呢？我们打开工具`Navicat`，右键设计表，在索引的这个选项卡里面，我们可以创建索引。
 
 <img src="Mysql索引/image-20210622005830800.png" alt="image-20210622005830808" />
 
-第一个是索引的名称，第二个是索引的列，比如我们是要对id创建索引还是对name创建索引。后面两个很重要，一个叫索引类型。在InnoDB里面，索引类型有四种，全文索引（FULLTEXT）普通索引（NORMAL）、空间索引（SPATIAL）、唯一索引（UNIQUE）。
+第一个是索引的名称，第二个是索引的列，比如我们是要对id创建索引还是对name创建索引。后面两个很重要，一个叫索引类型。在`InnoDB`里面，索引类型有四种，全文索引（`FULLTEXT`）普通索引（`NORMAL`）、空间索引（`SPATIAL`）、唯一索引（`UNIQUE`）。
 
 >主键索引是特殊的唯一 索引。
 
@@ -39,7 +39,7 @@ categories:
 
 唯一 (UNIQUE)：唯一索弓|要求键值不能重复。另外需要注意的是，主键索引是一 种特殊的唯一索引，它还多了一个限制条件，要求键值不能为空，主键索引用primay key 创建。
 
-全文(FULLTEXT)：针对比较大的数据，比如我们存放的是消息内容、一篇文章，有 几KB的数据的这种情况，如果要解决like査询在全文匹配的时候效率低的问题，可以创建全文索引。只有文本类型的字段才可以创建全文索引，比如char、varchar、text。
+全文(`FULLTEXT`)：针对比较大的数据，比如我们存放的是消息内容、一篇文章，有 几KB的数据的这种情况，如果要解决like査询在全文匹配的时候效率低的问题，可以创建全文索引。只有文本类型的字段才可以创建全文索引，比如`char`、`varchar`、`text`。
 
 >语法：
 >
@@ -47,7 +47,7 @@ categories:
 >select * fiom table where match(content) against('test'IN NATURAL LANGUAGE MODE);
 >```
 >
->MylSAM和InnoDB支持全文索引。
+>`MylSAM`和`InnoDB`支持全文索引。
 
 ### 索引存储模型推演
 
@@ -71,7 +71,7 @@ categories:
 
 **特点**：左子树所有的节点都小于父节点，右子树所有的节点都大于父节点。投影到平面以后，就是一个有序的线性表。
 
->图
+<img src="Mysql索引/image-20210622005830812.png" alt="image-20210622005830808" />
 
 二叉查找树既能够实现快速查找，又能够实现快速插入。但是二叉查找树有一个问题：就是它的查找耗时是和这棵树的深度相关的，在最坏的情况下时间复杂度会退化成O(n)。
 
@@ -394,11 +394,168 @@ CREATE INDEX idx_name_phone on user_innodb(name,phone);
 
 ### 覆盖索引
 
-回表: 非主键索引，我们先通过索引找到主键索引的键值，再通过主键值查出索引里面没
+回表：非主键索引，我们先通过索引找到主键索引的键值，再通过主键值查出索引里面没有的数据，它比基于主键索引的查询多扫描了一棵索引树，这个过程就叫回表。
 
-有的数据，它比基于主键索引的查询多扫描了一棵索引树，这个过程就叫回表。
+```mysql
+select * from user_innodb where name = 'Will';
+```
+
+>图
+
+在二级索引里面，不管是单列索引还是联合索引，如果select的数据列只用从索引中就能够取到，不必从数据区中读取，这时候使用的索引就叫做覆盖索引，这样就避免 了回表。首先创建一个联合索引；
+
+```mysql
+# 创建联合索引
+ALTER TABLE user_innodb DROP INDEX comixd_name_phone;
+CREATE INDEX comixd_name_phone ON user_innodb (name, phone);
+# alter table user_innodb add index comixd_name_phone (name, phone);
+```
+
+Extra里面值为"Using index”代表属于覆盖索引的情况。
+
+<img src="Mysql索引/image-20210622005830811.png" />
+
+这三个查询语句属于覆盖索引：
+
+```mysql
+EXPLAIN SELECT name,phone FROM user_innodb WHERE name ='test' AND phone = '13666666666';
+
+EXPLAIN SELECT name FROM user_innodb WHERE name = '青山' AND phone = '113666666666';
+
+EXPLAIN SELECT phone FROM user_innodb WHERE name = '青山' AND phone = '13666666666';
+```
+
+> select * ，不是覆盖索引。
+
+如果改成只用where phone =査询呢？按照我们之前的分析，它是用不到索引的。实际上可以用到覆盖索引，优化器觉得用索引更快，所以还是用到了索引。很明显，因为覆盖索引减少了I/O次数，减少了数据的访问量，可以大大地提升查询效率。
+
+### 索引条件下推（`ICP`）
+
+索引条件下推(Index Condition Pushdown) ，`5.6`以后完善的功能。只适用于二级索引。`ICP`的目标是减少访问表的完整行的读数量从而减少I/O操作。这里说的下推，其实是意思是把过滤的动作在存储引擎做完，而不需要到Server层过滤。再来看这么一张表，在`last_name`和`first_name`上面创建联合索引。
+
+```mysql
+drop table if exists employees;
+create table employees
+(
+    emp_no     int(11) auto_increment NOT NULL,
+    birth_date date                   NULL,
+    first_name varchar(14)            NOT NULL,
+    last_name  varchar(16)            NOT NULL,
+    gender     enum ('M','F')         NOT NULL,
+    hire_date  date                   NULL,
+    PRIMARY KEY (emp_no)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = latin1;
+
+alter table employees
+    add index idx_lastname_firstname (last_name, first_name);
+
+INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)
+VALUES (current_date, '698', 'liu', 'F', current_date);
+INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)
+VALUES (NULL, 'd99', 'zheng', 'F', NULL);
+INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)
+VALUES (NULL, 'e08', 'liuang', 'F', NULL);
+INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)
+VALUES (NULL, ' 59d', 'lu', 'F', NULL);
+INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)
+VALUES (NULL, '989', 'yu', 'F', NULL);
+```
+
+现在我们要査询所有姓`wang`，并且名字最后一个字是`zi`的员工，比如王胖子，王瘦子。查询的SQL：
+
+```mysql
+select * from employees where last_name = 'wang' and first_name LIKE '%zi';
+```
+
+正常情况来说，因为字符是从左往右排序的，当你把`％`加在前面的时候，是不能基于 索引去比较的，所以只有`last_name `（姓）这个字段能够用于索引比较和过滤。
+
+所以查询过程是这样的：
+
+- 根据联合索引查出所有姓`wang`的二级索引数据（3个主键值：6、7、8）。
+-  回表，到主键索引上查询全部符合条件的数据（3条数据）。
+- 把这3条数据返回给Server层，在Server层过滤出名字以`zi`结尾的员工。
+
+>图
 
 
+
+## 索引的创建与使用
+
+### 索引创建
+
+- 在用于where判断order排序和join的(on)、group by的字段上创建索引
+- 索引的个数不要过多。（浪费空间，更新变慢）
+- 过长的字段，建立前缀索引。
+
+```mysql
+CREATE TABLE 'pre_test'
+(
+    'content' varchar(20) DEFAULT NULL,
+    KEY ' pre_idx' ('content' (6))
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4;
+```
+
+- 区分度低的字段，例如性别，不要建索引。（离散度太低，导致扫描行数过多）
+- 频繁更新的值，不要作为主键或者索引。（页分裂）
+- 随机无序的值，不建议作为索引，例如身份证、`UUID`。（无序，分裂）
+- 组合索引把散列性高(区分度高)的值放在前面。
+- 创建复合索引，而不是修改单列索引。
+
+### 索引失效
+
+- 索引列上使用函数(`replace`\`substr`\`concat`\`sum` `count` `avg`)、表达式计算(`+`  `-` `*` `/`)：
+
+  ```mysql
+  explain SELECT * FROM t2 where id+1 = 4;
+  ```
+
+- 字符串不加引号，出现隐式转换
+
+  ```mysql
+  ALTER TABLE user_innodb DROP INDEX comidx_name_hone;
+  ALTER TABLE user innodb add INDEX comidx_name_phone (name,phone);
+  
+  explain SELECT * FROM user_innodb where name = 136;
+  explain SELECT * FROM user_innodb where name = '136';
+  ```
+
+- `like`条件中前面带`%`，`where`条件中`like abc%`，`like %2673%`, `like %888`都用不到索引吗？为什么?
+
+  ```mysql
+  explain select * from user_innodb where name like 'wang%';
+  explain select * from user_innodb where name like '%wang';
+  ```
+
+  >过滤的开销太大。这个时候可以用全文索引。
+
+- 负向查询
+
+  - `NOT LIKE`不能：
+
+  ```mysql
+  explain select * from employees where last_name not like 'wang';
+  ```
+
+  - `(<>)`和`NOT IN`在某些情况下可以:
+
+  ```mysql
+  explain select * from employees where emp_no not in (1);
+  explain select * from employees where emp_no <> 1;
+  ```
+
+  >这个例子中，因为索引是有序的，只要从1之后开始顺序读取就行了。
+
+
+
+注意跟数据库版本、数据量、数据选择度都有关系。其实，用不用索引，最终都是优化器说了算。
+
+优化器是基于什么的优化器呢？
+
+基于 cost 开销(Cost Base Optimizer)，它不是基于规则(Rule-Based Optimizer),，也不是基于语义。怎么样开销小就怎么来。
+
+使用索引有基本原则，但是没有具体细则，没有什么情况一定用索引，什么情况一 定不用索引的规则。
 
 
 
@@ -413,3 +570,4 @@ CREATE INDEX idx_name_phone on user_innodb(name,phone);
 - 如果字段重复值很多的时候，会出现大量的哈希冲突(采用拉链法解 决)，效率会降低。
 
 > 在InnoDB中，不能显式地创建一个哈希索引（所谓的支持哈希索 引指的是AHI,自适应哈希，它是InnoDB自动为buffer pool中的热点页创建的索引）。memory存储引擎可以使用Hash索引。
+
