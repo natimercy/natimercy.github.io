@@ -1,0 +1,2247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>Mysql Index</title>
+    <url>/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/</url>
+    <content><![CDATA[<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><span id="more"></span>
+
+<h2 id="索引是什么"><a href="#索引是什么" class="headerlink" title="索引是什么"></a>索引是什么</h2><h3 id="索引的图解"><a href="#索引的图解" class="headerlink" title="索引的图解"></a>索引的图解</h3><p>维基百科上对数据库索引的定义：数据库索引，是数据库管理系统(DBMS)中一个排序的数据结构，以协助快速查询、 更新数据库表中数据。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830813.png">
+
+<p>数据是以文件的形式存放在磁盘上面的，每一行数据都有它的磁盘地址。如果没有索引的话，我们要从500万行数据里面检索一条数据，只能依次遍历这张表的全部数据, 直到找到这条数据。但是我们有了索引之后，只需要在索引里面去检索这条数据就行了，因为它是一种 特殊的专门用来快速检索的数据结构，我们找到数据存放的磁盘地址以后，就可以拿到 数据了。</p>
+<p>就像我们从一本500页的书里面去找特定的一小节的内容，肯定不可能从第一页开 始翻。那么这本书有专门的目录，它可能只有几页的内容，它是按页码来组织的，可以根 据拼音或者偏旁部首来查找，我们只要确定内容对应的页码，就能很快地找到我们想要 的内容。</p>
+<h3 id="索引类型"><a href="#索引类型" class="headerlink" title="索引类型"></a>索引类型</h3><p>那在我们的数据表上面，我们怎么去创建一个索引呢？我们打开工具<code>Navicat</code>，右键设计表，在索引的这个选项卡里面，我们可以创建索引。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830800.png" alt="image-20210622005830808">
+
+<p>第一个是索引的名称，第二个是索引的列，比如我们是要对id创建索引还是对name创建索引。后面两个很重要，一个叫索引类型。在<code>InnoDB</code>里面，索引类型有四种，全文索引（<code>FULLTEXT</code>）普通索引（<code>NORMAL</code>）、空间索引（<code>SPATIAL</code>）、唯一索引（<code>UNIQUE</code>）。</p>
+<blockquote>
+<p>主键索引是特殊的唯一 索引。</p>
+</blockquote>
+<p>普通(NORMAL)：也叫非唯一索引，是最普通的索引，没有任何的限制。</p>
+<p>唯一 (UNIQUE)：唯一索弓|要求键值不能重复。另外需要注意的是，主键索引是一 种特殊的唯一索引，它还多了一个限制条件，要求键值不能为空，主键索引用primay key 创建。</p>
+<p>全文(<code>FULLTEXT</code>)：针对比较大的数据，比如我们存放的是消息内容、一篇文章，有 几KB的数据的这种情况，如果要解决like査询在全文匹配的时候效率低的问题，可以创建全文索引。只有文本类型的字段才可以创建全文索引，比如<code>char</code>、<code>varchar</code>、<code>text</code>。</p>
+<blockquote>
+<p>语法：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&gt;select * fiom table where match(content) against(&#39;test&#39;IN NATURAL LANGUAGE MODE);</span><br></pre></td></tr></table></figure>
+
+<p><code>MylSAM</code>和<code>InnoDB</code>支持全文索引。</p>
+</blockquote>
+<h3 id="索引存储模型推演"><a href="#索引存储模型推演" class="headerlink" title="索引存储模型推演"></a>索引存储模型推演</h3><h3 id="二分查找"><a href="#二分查找" class="headerlink" title="二分查找"></a>二分查找</h3><p>《幸运52》有一个猜价格的游戏，限定时间之内猜中了就可以带回家。</p>
+<p>在你报出价格之后主持人会告诉你低了还是高了如果价格在10000-30000之间，你会先猜多少？</p>
+<p>一般人都会从2000开始猜。其实这个就是二分查找的一种思想，也叫折半查找，每一次，我们都把候选数据缩小了一半。如果数据已经排过序的话，这种方式效率比较高。 所以第一个,我们可以考虑用有序数组作为索引的数据结构。</p>
+<p><strong>有序数组</strong>的等值查询和比较查询效率非常高，但是更新数据的时候会出现一个问题, 可能要挪动大量的数据(改变index),所以只适合存储静态的数据。</p>
+<p>为了支持频繁的修改，比如插入数据，我们需要采用链表，<strong>链表</strong>的话，如果是单链 表，它的查找效率还是不够高。</p>
+<p>所以，有没有可以使用二分査找的链表呢？</p>
+<p>为了解决这个问题，BST (Binary Search Tree)也就是我们所说的二叉査找树诞生了。</p>
+<h3 id="二叉查找树-BST-Binary-Search-Tree"><a href="#二叉查找树-BST-Binary-Search-Tree" class="headerlink" title="二叉查找树(BST Binary Search Tree)"></a>二叉查找树(BST Binary Search Tree)</h3><p><strong>特点</strong>：左子树所有的节点都小于父节点，右子树所有的节点都大于父节点。投影到平面以后，就是一个有序的线性表。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830812.png" alt="image-20210622005830808">
+
+<p>二叉查找树既能够实现快速查找，又能够实现快速插入。但是二叉查找树有一个问题：就是它的查找耗时是和这棵树的深度相关的，在最坏的情况下时间复杂度会退化成O(n)。</p>
+<p>什么情况是最坏的情况呢？</p>
+<p>还是刚才的这一批数字，如果我们插入的数据刚好是有序的，2、6、11、13、17、22。它会变成链表（我们把这种树叫做“斜树”），这种情况下不能达到加快检索速度的目的，和顺序查找效率是没有区别的。</p>
+<p>造成它倾斜的原因是什么呢？</p>
+<p>因为左右子树深度差太大，这棵树的左子树根本没有节点——也就是它不够平衡。所以，我们有没有左右子树深度相差不是那么大，更加平衡的树呢？这个就是平衡二叉树，叫做Balanced binary search trees，或者<code>AV</code>L树（<code>AVL</code>是发明这个数据结构的两位作者的名字简写：<code>G. M. Adelson-Velsky</code>和<code>E. M. Landis</code>）。</p>
+<h3 id="平衡二叉树（AVL-Tree）（左旋、右旋）"><a href="#平衡二叉树（AVL-Tree）（左旋、右旋）" class="headerlink" title="平衡二叉树（AVL Tree）（左旋、右旋）"></a>平衡二叉树（AVL Tree）（左旋、右旋）</h3><p><code>AVL</code> Trees （<strong>Balanced</strong> binary search trees）</p>
+<p>平衡二叉树的<strong>定义</strong>：左右子树深度差绝对值不能超过1。</p>
+<p>是什么意思呢？比如左子树的深度是2,右子树的深度只能是1或者3。</p>
+<p>这个时候我们再按顺序插入1、2、3、4、5、6,—定是这样，不会变成一棵“斜树“</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830801.png" alt="image-20210622005830808">
+
+<p>那它的平衡是怎么做到的呢？怎么保证左右子树的深度差不能超过1呢？</p>
+<p>插入1、2、3。我们注意看：当我们插入了 1、2之后，如果按照二叉查找树的定义，3肯定是要在 2的右边的，这个时候根节点1的右节点深度会变成2,但是左节点的深度是0,因为它 没有子节点，所以就会违反平衡二叉树的定义。</p>
+<p>那应该怎么办呢？因为它是右节点下面接一个右节点，右-右型，所以这个时候我们 要把2提上去，这个操作叫做左旋。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830802.png" alt="image-20210622005830808">
+
+<p>同样的，如果我们插入7、6、5,这个时候会变成左左型，就会发生右旋操作，把6提上去。<br><img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830803.png" alt="image-20210622005830808"></p>
+<p>所以为了保持平衡，AVL树在插入和更新数据的时候执行了一系列的计算和调整的 操作。</p>
+<p>平衡的问题我们解决了，那么平衡二叉树作为索引怎么査询数据?</p>
+<p>在平衡二叉树中，一个节点，它的大小是一个固定的单位，作为索引应该存储什么内容？</p>
+<p>前面我们已经知道了，索引必须要存你建立索引的字段的值，叫做键值，比如id的值。还要存完整记录在磁盘上的地址。由于AVL树是二叉树，所以还要额外地存储左右子树的指针。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830804.png" alt="image-20210622005830808">
+
+<p>如图：</p>
+<p>第一个是索引的键值。比如我们在id上面创建了一个索弓|,我在用where id =1的 条件查询的时候就会找到索引里面的id的这个键值。</p>
+<p>第二个是数据的磁盘地址，因为索引的作用就是去查找数据的存放的地址。</p>
+<p>第三个，因为是二叉树，它必须还要有左子节点和右子节点的引用，这样我们才能找到下一个节点。比如大于26的时候，走右边，到下一个树的节点，继续判断。</p>
+<p>如果是这样存储数据的话，我们来看一下会有什么问题。</p>
+<h3 id="AVL树用于存储索引数据"><a href="#AVL树用于存储索引数据" class="headerlink" title="AVL树用于存储索引数据"></a>AVL树用于存储索引数据</h3><p>首先，索引的数据，是放在硬盘上的。查看数据和索引的大小：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select</span><br><span class="line">CONCAT(ROUND(SUM(DATA_LENGTH&#x2F;1024&#x2F;1024),2),&#39;MB&#39;)  AS data_len, CONCAT(ROUND(SUM(INDEX_LENGTH&#x2F;1024&#x2F;1024),2),&#39;MB&#39;) AS index_len </span><br><span class="line">       from information_schema.TABLES</span><br><span class="line">where table_schema&#x3D;&#39;test&#39; and table_name&#x3D;&#39;user_innodb&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>当我们用树的结构来存储索引的时候，访问一个节点就要跟磁盘之间发生一次IO操作。<code>InnoDB</code>操作磁盘的最小的单位是一页(或者叫一个磁盘块)，大小是<code>16K</code>(16384 字节)。那么，一个树的节点必须设计成<code>16K</code>的大小，不然就会出现读不完或者读不够的情 况。如果我们一个节点只存一个键值+数据+引用，例如整形的字段，可能只用了十几个或者几十个字节，它远远达不到<code>16K</code>的容量。</p>
+<p>因此，我们基于索引査找数据的时候，肯定是希望一次从磁盘加载很多的数据 到内存中进行比较，这样就可以尽快拿到完整的数据。如果一个节点只存1个这样的单元，就需要读更多的节点，发生更多的I/O操作。如果是机械硬盘时代，每次从磁盘读取数据需要<code>10ms</code>左右的寻址时间，交互次数 越多，消耗的时间就越多。</p>
+<p>比如上面这张图，我们一张表里面有6条数据，当我们查询id = 66的时候，要查询 两个子节点，就需要跟磁盘交互3次，如果我们有几百万的数据呢？这个时间更加难以 估计。</p>
+<p>我们怎么解决这个问题？</p>
+<ul>
+<li><p>第一个就是让每个节点存储更多的数据。</p>
+</li>
+<li><p>第二个，节点上的关键字的数量越多，我们的指与十数也越多，也就是意味着可以有 更多的分叉（我们把它叫做”路数”）。</p>
+</li>
+</ul>
+<p>因为分叉数越多，树的深度就会减少（根节点是0）。这样，我们的树是不是从原来的高瘦高瘦的样子，变成了矮胖矮胖的样子？这个时候，我们的树就不再是二叉了，而是多叉，或者叫做多路。</p>
+<h3 id="多路平衡查找树（B-Tree）（分裂、合并）"><a href="#多路平衡查找树（B-Tree）（分裂、合并）" class="headerlink" title="多路平衡查找树（B Tree）（分裂、合并）"></a>多路平衡查找树（B Tree）（分裂、合并）</h3><p>跟<code>AVL</code>树一样，B树在枝节点和叶子节点存储键值、数据地址、节点引用。</p>
+<p><strong>特点</strong>：分叉数（路数）永远比关键字数多1。比如我们画的这棵树，每个节 点存储两个关键字，那么就会有三个指针指向三个子节点（当然肯定不只存3个这么少）。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830805.png" alt="image-20210622005830808">
+
+<p>B Tree的查找规则</p>
+<p>比如我们要在这张表里面查找15。因为15小于17,走左边。因为15大于12,走右边。在磁盘块7里面就找到了15，只用了 3次IO。</p>
+<p>这个是不是比AVL树效率更高呢？</p>
+<p>那B Tree又是怎么实现一个节点存储多个关键字，还保持平衡的呢？跟AVL树有什么区别？</p>
+<p>比如Max Degree (路数)是3的时候，我们插入数据1、2、3,在插入3的时候, 本来应该在第一个磁盘块，但是如果一个节点有三个关键字的时候，意味着有4个指针, 子节点会变成4路，所以这个时候必须进行分裂。把中间的数据2提上去，把1和3变 成2的子节点。</p>
+<p>如果删除节点，会有相反的合并的操作。</p>
+<p>注意这里是分裂和合并，跟AVL树的左旋和右旋是不一样的。</p>
+<p>我们继续插入4和5，B Tree又会出现分裂和合并的操作。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830806.png">
+
+<p>从这个里面我们也能看到，在更新索引的时候会有大量的索引的结构的调整，所以 解释了为什么我们不要在频繁更新的列上建索引，或者为什么不要更新主键。节点的分裂和合并，其实就是InnoDB页的分裂和合并。</p>
+<p>如果索引键值有序，写满一页接着开辟一个新的页：</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830807.png">
+
+<p>如果索引键值无序，存储过程造成大量磁盘碎片，带来频繁的page分裂和合并：</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830808.png">
+
+<h3 id="B-树（加强版多路平衡查找树）"><a href="#B-树（加强版多路平衡查找树）" class="headerlink" title="B+树（加强版多路平衡查找树）"></a>B+树（加强版多路平衡查找树）</h3><p>B Tree的效率已经很高了，为什么MySQL还要对B Tree进行改良，最终使用了B+Tree 呢？</p>
+<p>总体上来说，这个B树的改良版本解决的问题比B Tree更全面。</p>
+<p>我们来看一下InnoDB里面的B+树的存储结构：</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830809.png">
+
+<p><code>MySQL</code>中的B+Tree有几个特点：</p>
+<ul>
+<li><p>它的关键字的数量是跟路数相等的。</p>
+</li>
+<li><p>B+Tree的根节点和枝节点中都不会存储数据，只有叶子节点才存储数据。 目前我们的认知：这里要存放的数据是什么？是完整记录的地址。搜索到关键字不会直接返回，会到最后一层的叶子节点。比如我们搜索id=28, 虽然在第一层直接命中了，但是全部的数据在叶子节点上面，所以我还要继续往下搜 索，一直到叶子节点。</p>
+</li>
+<li><p>B+Tree的每个叶子节点增加了一个指向相邻叶子节点的指针，它的最后一个 数据会指向下一个叶子节点的第一个数据,形成了一个有序链表的结构。</p>
+</li>
+</ul>
+<p>我们来看一下B+Tree的数据搜寻过程：</p>
+<ul>
+<li><p>比如我们要查找28,在根节点就找到了键值，但是因为它不是页子节点，所以 会继续往下搜寻，28是［28,66）的左闭右开的区间的临界值，所以会走中间的子节点，然 后继续搜索，它又是［28,34）的左闭右开的区间的临界值，所以会走左边的子节点，最后 在叶子节点上找到了需要的数据。</p>
+</li>
+<li><p>第二个，如果是范围查询，比如要查询从22到60的数据，当找到22之后，只 需要顺着节点和指针顺序遍历就可以一次性访问到所有的数据节点，这样就极大地提高 了区间查询效率（不需要返回上层父节点重复遍历查找）。</p>
+</li>
+</ul>
+<p>总结一下，<code>InnoDB</code>中的B+Tree特性带来的优势：</p>
+<ul>
+<li>它是<code>BTree</code>的变种，<code>BTree</code>能解决的问题，它都能解决。B Tree解决的两大问题 是什么？（每个节点存储更多关键字；路数更多）。</li>
+<li>扫库、扫表能力更强（如果我们要对表进行全表扫描，只需要遍历叶子节点就可以 了，不需要遍历整棵B+Tree拿到所有的数据）。</li>
+<li>B+Tree的磁盘读写能力相对于B Tree来说更强（根节点和枝节点不保存数据区, 所以一个节点可以保存更多的关键字，一次磁盘加载的关键字更多）。</li>
+<li>排序能力更强（因为叶子节点上有下一个数据区的指针，数据形成了链表）。</li>
+<li>效率更加稳定（B+Tree永远是在叶子节点拿到数据，所以IO次数是稳定的）。</li>
+</ul>
+<p>我们举个例子：假设一条记录是<code>16bytes</code>, 一个叶子节点（一页）可以存储10条记 录。非叶子节点可以存储多少个指针？</p>
+<p>假设索弓I字段+指针大小为16字节。非叶子节点（一页）可以存储1000个这样的 单元（键值+指针），代表有1000个指针。</p>
+<p>树深度为2的时候，有1000^2个叶子节点，可以存储的数据为1000<code>*</code>1000<code>*</code>10=10000000 （千万级别）。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830810.png">
+
+<p>在査找数据时一次页的査找代表一次IO,也就是说，一张千万级别的表，査询数据 最多需要访问3次磁盘。</p>
+<p>树的深度是怎么来的？根据你的键值类型和数据量计算出来的。字段值越大、数据 量越大，深度越大。</p>
+<p>所以在<code>InnoDB</code>中B+树深度一般为1-3层，它就能满足千万级的数据存储。</p>
+<h3 id="为什么不用红黑树"><a href="#为什么不用红黑树" class="headerlink" title="为什么不用红黑树"></a>为什么不用红黑树</h3><p>红黑树也是BST树，但是不是严格平衡的，通过变色和旋转来保持平衡。必须满足5个约束：</p>
+<ul>
+<li>节点分为红色或者黑色。</li>
+<li>根节点必须是黑色的。</li>
+<li>叶子节点都是黑色的<code>NULL</code>节点。</li>
+<li>红色节点的两个子节点都是黑色（不允许两个相邻的红色节点）。</li>
+<li>从任意节点出发，到其每个叶子节点的路径中包含相同数量的黑色节点。 插入：60、56、68、45、64、 58、72、43、49</li>
+</ul>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830814.png">
+
+<p>基于以上规则，可以推导出：从根节点到叶子节点的最长路径（红黑相间的路径）不大于最短路径（全部是黑色节点）的2倍。</p>
+<p>为什么不用红黑树？ 1、只有两路；2、不够平衡。红黑树一般只放在内存里面用。例如Java的TreeMap，它可以用来实现一致性哈希。</p>
+<h3 id="索引方式：真的是用的B-Tree吗"><a href="#索引方式：真的是用的B-Tree吗" class="headerlink" title="索引方式：真的是用的B+Tree吗?"></a>索引方式：真的是用的B+Tree吗?</h3><p><code>Navicat</code>的工具中，创建索引，索引方式有两种。</p>
+<p>HASH：以KV的形式检索数据，也就是说，它会根据索引字段生成哈希码和指针，指针指向数据。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830815.png">
+
+
+
+<h2 id="B-Tree落地形式"><a href="#B-Tree落地形式" class="headerlink" title="B+Tree落地形式"></a>B+Tree落地形式</h2><h3 id="MySQL-架构"><a href="#MySQL-架构" class="headerlink" title="MySQL 架构"></a>MySQL 架构</h3><p>MySQL是一个支持插件式存储引擎的数据库，在MySQL里 面，每个表在创建的时候都可以指定它所使用的存储引擎。</p>
+<h3 id="MySQL数据存储文件"><a href="#MySQL数据存储文件" class="headerlink" title="MySQL数据存储文件"></a>MySQL数据存储文件</h3><p>MySQL的数据都是文件的形式存放在磁盘中的，我们可以找到这个数据目录的地址。在MySQL中有这么一个参数，我们来看一下：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show VARIABLES LIKE &#39;datadir;</span><br></pre></td></tr></table></figure>
+
+<p>每个数据库有一个目录，我们新建了一个叫做<code>test</code>的数据库，那么这里就有一个<code>test</code>的文件夹。这个数据库里面我们又建了5张表：<code>archive</code>，<code>innodb</code>，<code>memory</code>，<code>myisam</code>，<code>csvo</code>。</p>
+<p>我们进入<code>test</code>的目录，发现这里面有一些跟我们创建的表名对应的文件。在这里我们能看到，每张InnoDB的表有两个文件（.frm和.ibd） , MylSAM的表有三个文件（.frm、.MYD、,MYI）。有一个是相同的文件<code>.frm</code>，<code>.frm</code>是MySQL里面表结构定义的文件，不管你建表的时候选用任何一个存储引擎都会生成。</p>
+<h3 id="MylSAM"><a href="#MylSAM" class="headerlink" title="MylSAM"></a>MylSAM</h3><p>在MylSAM里面，另外有两个文件：一个是<code>.MYD</code>文件，D代表Data,是MylSAM的数据文件，存放数据记录，比如我们的user myisam表的所有的表数据。一个是<code>.MYI</code>文件，I代表Index，是MylSAM的索引文件，存放索引，比如我们在 id字段上面创建了一个主键索引，那么主键索引就是在这个索引文件里面。一个索引就 会有一棵<code>B+Tree</code>,所有的<code>B+Tree</code>都在这个<code>.MYI</code>文件里面。也就是说，在MylSAM里面，索引和数据是两个独立的文件。MylSAM的<code>B+Tree</code>里面，叶子节点存储的是数据文件对应的磁盘地址。所以从索 引文件<code>.MYI</code>中找到键值后，会到数据文件<code>.MYD</code>中获取相应的数据记录。</p>
+<blockquote>
+<p>图</p>
+</blockquote>
+<p>在<code>MylSAM</code>里面，其他的索引也在这个<code>.MYI</code>文件里面。</p>
+<p>非主键索引跟主键索引存储和检索数据的方式是没有任何区别的，一样是在索引文 件里面找到磁盘地址，然后到数据文件里面获取数据。</p>
+<blockquote>
+<p>图</p>
+</blockquote>
+<h3 id="InnoDB"><a href="#InnoDB" class="headerlink" title="InnoDB"></a>InnoDB</h3><p>在<code>InnoDB</code>的某个索引的叶子节点上，它直接存储了我们的数据。 所以，为什么说在<code>InnoDB</code>中索引即数据，数据即索引，就是这个原因。</p>
+<p>但是这里会有一个问题，一张<code>InnoDB</code>的表可能有很多个多索引，数据肯定是只有—份的，那数据在哪个索引的叶子节点上呢？</p>
+<blockquote>
+<p>图</p>
+</blockquote>
+<h4 id="聚簇索引"><a href="#聚簇索引" class="headerlink" title="聚簇索引"></a>聚簇索引</h4><p>索引键值的逻辑顺序跟表数据行的物理存储顺序是一致的。<code>InnoDB</code>组织数据的方式就是（聚集）索引组织表（clustered index organize table）。如果说一张表创建了主键索引，那么这个主键索引就是聚集索引，决定数据行的物理存储顺序（比如字典的目录是按拼音排序的，内容也是按拼音排序的，按拼音排序的这种目 录就叫聚集索引）。</p>
+<p>那主键索引之外的索引，会不会也把完整记录在叶子节点放一份呢？并不会，因为这会带来额外的存储空间浪费和计算消耗。它们的叶子节点上没有数据怎么检索完整数据？比如我们在name字段上面建的普通索引。</p>
+<blockquote>
+<p>图</p>
+</blockquote>
+<p><code>InnoDB</code>中，主键索引和辅助索引是有一个主次之分的。刚才我们讲了，如果有主键索引，那么主键索引就是聚集索引。其他的索引统一叫做<code>二级索引（secondary index）</code>。二级索引存储的是二级索引的键值，例如在name上建立索引，节点上存的是name 的值，qingshanmictom等等（很明显，它的键值逻辑顺序跟物理行的顺序不一致）。而二级索引的叶子节点存的是这条记录对应的主键的值。比如qingshan id = 1，jack id=4所以，二级索引检索数据的流程是这样的：</p>
+<p>当我们用name索引查询一条记录，它会在二级索引的叶子节点找到 name=qingshan,拿到主键值，也就是id = 1,然后再到主键索引的叶子节点拿到数据。</p>
+<p>为什么不存地址而是存键值？因为地址会变化。从这个角度来说，因为主键索引比二级索引少扫描了一棵B+Tree （避免了回表）， 它的速度相对会快一些。</p>
+<p>但是，如果一张表没有主键怎么办？那完整的记录放在哪个索引的叶子节点？或者, 这张表根本没有索引呢？数据放在哪里？</p>
+<ul>
+<li>如果我们定义了主键(PRIMARY KEY),那么<code>InnoDB</code>会选择主键作为聚集索弘</li>
+<li>如果没有显式定义主键，则<code>InnoDB</code>会选择第一个不包含有NULL值的唯一索引 作为主键索引。</li>
+<li>如果也没有这样的唯一索引，则<code>InnoDB</code>会选择内置6字节长的<code>ROWID</code>作为隐藏的聚集索引，它会随着行记录的写入而主键递增。</li>
+</ul>
+<h2 id="索引使用原则"><a href="#索引使用原则" class="headerlink" title="索引使用原则"></a>索引使用原则</h2><h3 id="列的离散度"><a href="#列的离散度" class="headerlink" title="列的离散度"></a>列的离散度</h3><p>第一个叫做列的离散度，我们先来看一下列的离散度的公式：count(distinct(column name))：count（*)，列的全部不同值和所有数据行的比例。数据行数相同的情况下，分子越大，列的离散度就越高。</p>
+<p>数据行数相同的情况下，分子越大，列的离散度就越高。</p>
+<p>按照这个定义，name的离散度更高，还是gender的离散度更高?</p>
+<p>简单来说，如果列的重复值越多，离散度就越低，重复值越少，离散度就越高。</p>
+<p>我们不建议大家在离散度低的字段上建立索引。</p>
+<p>简单来说，如果列的重复值越多，离散度就越低，重复值越少，离散度就越高。</p>
+<p>我们不建议大家在离散度低的字段上建立索引。</p>
+<p>如果在B+Tree里面的重复值太多，MySQL的优化器发现走索引跟使用全表扫描差不了多少的时候，就算建了索引，也不一定会走索引。</p>
+<h3 id="联合索引最左匹配"><a href="#联合索引最左匹配" class="headerlink" title="联合索引最左匹配"></a>联合索引最左匹配</h3><p>前面我们说的都是针对单列创建的索引，但有的时候我们的多条件査询的时候，也会建立联合索引。单列索引可以看成是特殊的联合索引。比如我们在user表上面，给name和phone建立了一个联合索引。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">ALTER TABLE user_innodb DROP INDEX comidx_name_phone;</span><br><span class="line">ALTER TABLE user_innodb ADD INDEX comidx_name_phone (name,phone);</span><br></pre></td></tr></table></figure>
+
+<p>联合索引在<code>B+Tree</code>中是复合的数据结构，它是按照从左到右的顺序来建立搜索树的 （name在左边，phone在右边）。</p>
+<p>从这张图可以看岀来，name是有序的，phone是无序的。当name相等的时候， phone才是有序的。</p>
+<p>这个时候我们使用<code>where name = &#39;test&#39; and phone = &#39;136xx&#39;</code>去査询数据的时候，<code>B+Tree</code>会优先比较<code>name</code>来确定下一步应该搜索的方向，往左还是往右。如果<code>name</code>相同的时候再比较<code>phoneo</code>但是如果查询条件没有<code>name</code>,就不知道第一步应该查哪个 节点，因为建立搜索树的时候name是第一个比较因子，所以用不到索引。</p>
+<p>所以，我们在建立联合索引的时候，一定要把最常用的列放在最左边。</p>
+<p>比如下面的三条语句，大家觉得用到联合索引了吗？</p>
+<ul>
+<li>使用两个字段，用到联合索引：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN SELECT * FROM user_innodb WHERE name&#x3D;&#39;test&#39;AND phone &#x3D; 45204661800&#39;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>使用左边的name字段，用到联合索引：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN SELECT * FROM user_nnodb WHERE name&#x3D;&#39;test&#39;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>使用右边的phone字段，无法使用索引，全表扫描：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN SELECT * FROM user_innodb WHERE phone &#x3D; &#39;15204661800&#39;</span><br></pre></td></tr></table></figure>
+
+<h4 id="如何创建联合索引"><a href="#如何创建联合索引" class="headerlink" title="如何创建联合索引"></a>如何创建联合索引</h4><p>一个查询创建一个索引，所以我们针对这两条SQL创建了两个索引，这种做法觉得正确？</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">CREATE INDEX idx_name on user_innodb(name);</span><br><span class="line">CREATE INDEX idx_name_phone on user_innodb(name,phone);</span><br></pre></td></tr></table></figure>
+
+<p>当我们创建一个联合索引的时候，按照最左匹配原则，用左边的字段name去査询 的时候，也能用到索引，所以第一个索引完全没必要。</p>
+<p>相当于建立了两个联合索引(name)，(name,phone)。如果我们创建三个字段的索引index(a,b,c),相当于创建三个索引：index(a)，index(a,b)，index(a/b/c)。用<code>where b=？和where b=? and c=?</code>是不能使用到索引的。</p>
+<h3 id="覆盖索引"><a href="#覆盖索引" class="headerlink" title="覆盖索引"></a>覆盖索引</h3><p>回表：非主键索引，我们先通过索引找到主键索引的键值，再通过主键值查出索引里面没有的数据，它比基于主键索引的查询多扫描了一棵索引树，这个过程就叫回表。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from user_innodb where name &#x3D; &#39;Will&#39;;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>图</p>
+</blockquote>
+<p>在二级索引里面，不管是单列索引还是联合索引，如果select的数据列只用从索引中就能够取到，不必从数据区中读取，这时候使用的索引就叫做覆盖索引，这样就避免 了回表。首先创建一个联合索引；</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 创建联合索引</span><br><span class="line">ALTER TABLE user_innodb DROP INDEX comixd_name_phone;</span><br><span class="line">CREATE INDEX comixd_name_phone ON user_innodb (name, phone);</span><br><span class="line"># alter table user_innodb add index comixd_name_phone (name, phone);</span><br></pre></td></tr></table></figure>
+
+<p>Extra里面值为”Using index”代表属于覆盖索引的情况。</p>
+<img src="/2021/07/07/Mysql%E7%B4%A2%E5%BC%95/image-20210622005830811.png">
+
+<p>这三个查询语句属于覆盖索引：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN SELECT name,phone FROM user_innodb WHERE name &#x3D;&#39;test&#39; AND phone &#x3D; &#39;13666666666&#39;;</span><br><span class="line"></span><br><span class="line">EXPLAIN SELECT name FROM user_innodb WHERE name &#x3D; &#39;青山&#39; AND phone &#x3D; &#39;113666666666&#39;;</span><br><span class="line"></span><br><span class="line">EXPLAIN SELECT phone FROM user_innodb WHERE name &#x3D; &#39;青山&#39; AND phone &#x3D; &#39;13666666666&#39;;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>select * ，不是覆盖索引。</p>
+</blockquote>
+<p>如果改成只用where phone =査询呢？按照我们之前的分析，它是用不到索引的。实际上可以用到覆盖索引，优化器觉得用索引更快，所以还是用到了索引。很明显，因为覆盖索引减少了I/O次数，减少了数据的访问量，可以大大地提升查询效率。</p>
+<h3 id="索引条件下推（ICP）"><a href="#索引条件下推（ICP）" class="headerlink" title="索引条件下推（ICP）"></a>索引条件下推（<code>ICP</code>）</h3><p>索引条件下推(Index Condition Pushdown) ，<code>5.6</code>以后完善的功能。只适用于二级索引。<code>ICP</code>的目标是减少访问表的完整行的读数量从而减少I/O操作。这里说的下推，其实是意思是把过滤的动作在存储引擎做完，而不需要到Server层过滤。再来看这么一张表，在<code>last_name</code>和<code>first_name</code>上面创建联合索引。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">drop table if exists employees;</span><br><span class="line">create table employees</span><br><span class="line">(</span><br><span class="line">    emp_no     int(11) auto_increment NOT NULL,</span><br><span class="line">    birth_date date                   NULL,</span><br><span class="line">    first_name varchar(14)            NOT NULL,</span><br><span class="line">    last_name  varchar(16)            NOT NULL,</span><br><span class="line">    gender     enum (&#39;M&#39;,&#39;F&#39;)         NOT NULL,</span><br><span class="line">    hire_date  date                   NULL,</span><br><span class="line">    PRIMARY KEY (emp_no)</span><br><span class="line">) ENGINE &#x3D; InnoDB</span><br><span class="line">  DEFAULT CHARSET &#x3D; latin1;</span><br><span class="line"></span><br><span class="line">alter table employees</span><br><span class="line">    add index idx_lastname_firstname (last_name, first_name);</span><br><span class="line"></span><br><span class="line">INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)</span><br><span class="line">VALUES (current_date, &#39;698&#39;, &#39;liu&#39;, &#39;F&#39;, current_date);</span><br><span class="line">INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)</span><br><span class="line">VALUES (NULL, &#39;d99&#39;, &#39;zheng&#39;, &#39;F&#39;, NULL);</span><br><span class="line">INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)</span><br><span class="line">VALUES (NULL, &#39;e08&#39;, &#39;liuang&#39;, &#39;F&#39;, NULL);</span><br><span class="line">INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)</span><br><span class="line">VALUES (NULL, &#39; 59d&#39;, &#39;lu&#39;, &#39;F&#39;, NULL);</span><br><span class="line">INSERT INTO employees(birth_date, first_name, last_name, gender, hire_date)</span><br><span class="line">VALUES (NULL, &#39;989&#39;, &#39;yu&#39;, &#39;F&#39;, NULL);</span><br></pre></td></tr></table></figure>
+
+<p>现在我们要査询所有姓<code>wang</code>，并且名字最后一个字是<code>zi</code>的员工，比如王胖子，王瘦子。查询的SQL：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from employees where last_name &#x3D; &#39;wang&#39; and first_name LIKE &#39;%zi&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>正常情况来说，因为字符是从左往右排序的，当你把<code>％</code>加在前面的时候，是不能基于 索引去比较的，所以只有<code>last_name </code>（姓）这个字段能够用于索引比较和过滤。</p>
+<p>所以查询过程是这样的：</p>
+<ul>
+<li>根据联合索引查出所有姓<code>wang</code>的二级索引数据（3个主键值：6、7、8）。</li>
+<li> 回表，到主键索引上查询全部符合条件的数据（3条数据）。</li>
+<li>把这3条数据返回给Server层，在Server层过滤出名字以<code>zi</code>结尾的员工。</li>
+</ul>
+<blockquote>
+<p>图</p>
+</blockquote>
+<h2 id="索引的创建与使用"><a href="#索引的创建与使用" class="headerlink" title="索引的创建与使用"></a>索引的创建与使用</h2><h3 id="索引创建"><a href="#索引创建" class="headerlink" title="索引创建"></a>索引创建</h3><ul>
+<li>在用于where判断order排序和join的(on)、group by的字段上创建索引</li>
+<li>索引的个数不要过多。（浪费空间，更新变慢）</li>
+<li>过长的字段，建立前缀索引。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">CREATE TABLE &#39;pre_test&#39;</span><br><span class="line">(</span><br><span class="line">    &#39;content&#39; varchar(20) DEFAULT NULL,</span><br><span class="line">    KEY &#39; pre_idx&#39; (&#39;content&#39; (6))</span><br><span class="line">) ENGINE &#x3D; InnoDB</span><br><span class="line">  DEFAULT CHARSET &#x3D; utf8mb4;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>区分度低的字段，例如性别，不要建索引。（离散度太低，导致扫描行数过多）</li>
+<li>频繁更新的值，不要作为主键或者索引。（页分裂）</li>
+<li>随机无序的值，不建议作为索引，例如身份证、<code>UUID</code>。（无序，分裂）</li>
+<li>组合索引把散列性高(区分度高)的值放在前面。</li>
+<li>创建复合索引，而不是修改单列索引。</li>
+</ul>
+<h3 id="索引失效"><a href="#索引失效" class="headerlink" title="索引失效"></a>索引失效</h3><ul>
+<li><p>索引列上使用函数(<code>replace</code>`substr<code>\</code>concat<code>\</code>sum<code> </code>count<code> </code>avg<code>)、表达式计算(</code>+<code>  </code>-<code> </code>*<code> </code>/`)：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">explain SELECT * FROM t2 where id+1 &#x3D; 4;</span><br></pre></td></tr></table></figure></li>
+<li><p>字符串不加引号，出现隐式转换</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">ALTER TABLE user_innodb DROP INDEX comidx_name_hone;</span><br><span class="line">ALTER TABLE user innodb add INDEX comidx_name_phone (name,phone);</span><br><span class="line"></span><br><span class="line">explain SELECT * FROM user_innodb where name &#x3D; 136;</span><br><span class="line">explain SELECT * FROM user_innodb where name &#x3D; &#39;136&#39;;</span><br></pre></td></tr></table></figure></li>
+<li><p><code>like</code>条件中前面带<code>%</code>，<code>where</code>条件中<code>like abc%</code>，<code>like %2673%</code>, <code>like %888</code>都用不到索引吗？为什么?</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">explain select * from user_innodb where name like &#39;wang%&#39;;</span><br><span class="line">explain select * from user_innodb where name like &#39;%wang&#39;;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>过滤的开销太大。这个时候可以用全文索引。</p>
+</blockquote>
+</li>
+<li><p>负向查询</p>
+<ul>
+<li><code>NOT LIKE</code>不能：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">explain select * from employees where last_name not like &#39;wang&#39;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>(&lt;&gt;)</code>和<code>NOT IN</code>在某些情况下可以:</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">explain select * from employees where emp_no not in (1);</span><br><span class="line">explain select * from employees where emp_no &lt;&gt; 1;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这个例子中，因为索引是有序的，只要从1之后开始顺序读取就行了。</p>
+</blockquote>
+</li>
+</ul>
+<p>注意跟数据库版本、数据量、数据选择度都有关系。其实，用不用索引，最终都是优化器说了算。</p>
+<p>优化器是基于什么的优化器呢？</p>
+<p>基于 cost 开销(Cost Base Optimizer)，它不是基于规则(Rule-Based Optimizer),，也不是基于语义。怎么样开销小就怎么来。</p>
+<p>使用索引有基本原则，但是没有具体细则，没有什么情况一定用索引，什么情况一 定不用索引的规则。</p>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q &amp; A"></a>Q &amp; A</h2><h3 id="Q1：哈希索引有什么特点呢？"><a href="#Q1：哈希索引有什么特点呢？" class="headerlink" title="Q1：哈希索引有什么特点呢？"></a>Q1：哈希索引有什么特点呢？</h3><ul>
+<li><p>它的时间复杂度是o(1),査询速度比较快。因为哈希索引里面的数据不是按顺序存储的，所以不能用于排序。</p>
+</li>
+<li><p>我们在查询数据的时候要根据键值计算哈希码，所以它只能支持等值查询 (=IN)，不支持范围查询（<code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code> <code>between</code> <code>and</code>）。</p>
+</li>
+<li><p>如果字段重复值很多的时候，会出现大量的哈希冲突(采用拉链法解 决)，效率会降低。</p>
+</li>
+</ul>
+<blockquote>
+<p>在InnoDB中，不能显式地创建一个哈希索引（所谓的支持哈希索 引指的是AHI,自适应哈希，它是InnoDB自动为buffer pool中的热点页创建的索引）。memory存储引擎可以使用Hash索引。</p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>Mysql</category>
+      </categories>
+      <tags>
+        <tag>Mysql</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Mysql transaction and lock</title>
+    <url>/2021/06/13/Mysql%E4%BA%8B%E5%8A%A1%E4%B8%8E%E9%94%81/</url>
+    <content><![CDATA[<h2 id="什么是数据库的事务"><a href="#什么是数据库的事务" class="headerlink" title="什么是数据库的事务"></a>什么是数据库的事务</h2><blockquote>
+<p>版本(5.7)，存储引擎(InnnoDB)，事务隔离级别(RR)。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select version();</span><br><span class="line"></span><br><span class="line">show variables like &#39;%engine%&#39;;</span><br><span class="line"></span><br><span class="line">show global variables like &#39;tx_isolation&#39;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="事务的典型场景"><a href="#事务的典型场景" class="headerlink" title="事务的典型场景"></a>事务的典型场景</h3><p>什么地方会使用事务？根据业务类型来使用的还是根据数据操作类型来使用的？无论你是在方法上加@Transactional注解，还是在xml文件里面配 置切面，还是直接用JDBC的方法。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">tx:advice</span> <span class="attr">id</span>=<span class="string">&quot;txAdvice&quot;</span> <span class="attr">transaction-manager</span>=<span class="string">&quot;transactionManager&quot;</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">tx:attributes</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">tx:method</span> <span class="attr">name</span>=<span class="string">&quot;save*&quot;</span> <span class="attr">rollback-for</span>=<span class="string">&quot;lThrowablel&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">tx:method</span> <span class="attr">name</span>=<span class="string">&quot;add*&quot;</span> <span class="attr">rollback-for</span>=<span class="string">&quot;lThrowablel&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">tx:method</span> <span class="attr">name</span>=<span class="string">&quot;send*&quot;</span> <span class="attr">rol1back-for</span>=<span class="string">&quot;lThrowablel&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">tx:method</span> <span class="attr">name</span>=<span class="string">&quot;insert*&quot;</span> <span class="attr">rollback-for</span>=<span class="string">&quot;lThrowablel&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">tx:attributes</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">tx:advice</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>很多时候我们需要事务是因为我们希望涉及数据库的多个操作都成功，比如客户下 单，会操作订单表，资金表，物流表等等，就需要放在一个事务里面执行。</p>
+<p>很多同学在学习数据库事务的时候都接触过一个非常典型的案例，就是银行转账。 如果我们把行内转账简化成一个账户余额减少，另一个账户的余额增加的情况，那么这 两个动作一定是同时成功或者同时失败的，否则就会造成银行的会计科目不平衡。</p>
+<p>另外一个例子：12306的接续换乘功能，两张票必须同时购买成功，只买到前半程 或者只买到后半程都是没有意义的。</p>
+<h3 id="事务的定义"><a href="#事务的定义" class="headerlink" title="事务的定义"></a>事务的定义</h3><p>维基百科的定义：事务是数据库管理系统(DBMS)执行过程中的一个逻辑单位，由 一个有限的数据库操作序列构成。</p>
+<p>这里面有两个关键点，第一个，所谓的逻辑单位，意味着它是数据库最小的工作单 元，是不可以再分的。第二个，它可能包含了一个或者一系列的DML语句，包括insert delete updateo。(单条 DDL (create drop)和 DCL (grant revoke)也会有事务)</p>
+<h3 id="哪些存储引擎支持事务"><a href="#哪些存储引擎支持事务" class="headerlink" title="哪些存储引擎支持事务"></a>哪些存储引擎支持事务</h3><p>并不是所有的数据库或者所有的存储引擎都支持事务，它是作为一种特性出现的。 在MySQL所支持的这些存储引擎里面，有哪些是支持事务的呢？</p>
+<p>除了做集群的NDB之外，只有InnoDB支持事务，这个也是它成为默认的存储引擎的一个重要原因。</p>
+<p>为什么支持事务能够让InnoDB脱颖而岀，事务到底提供了哪些特性呢?</p>
+<h3 id="事务的四大特性"><a href="#事务的四大特性" class="headerlink" title="事务的四大特性"></a>事务的四大特性</h3><ul>
+<li><p>原子性（Atomicity），也就是我们刚才说的不可再分，因为原子是化学上（参加化学反应）最小的单位。也就意味着我们对数据库的一系列的操作，要么都是成功， 要么都是失败，不可能出现部分成功或者部分失败的情况，以刚才提到的转账的场景为 例，一个账户的余额减少，必然对应着另一个账户余额的增加。全部成功比较简单，问题是如果前面一个操作已经成功了，后面的操作失败了，怎 么让它全部失败呢？这个时候我们必须要回滚。原子性，在InnoDB里面是通过undo log来实现的，它记录了数据修改之前的值（逻 辑日志），一旦发生异常，就可以用undo log来实现回滚操作。</p>
+</li>
+<li><p>隔离性（Isolation），我们有了事务的定义以后，在数据库里面会有很多的。事务同时去操作我们的同一张表或者同一行数据，必然会产生一些并发或者干扰的操作。 我们对隔离性的定义，就是这些很多个的事务，对表或者行的并发操作，应该是透明的， 互相不干扰的。比如两个人给青山转账100，开启两个事务，都拿到了青山账户的余额 1000，然后各自基于1000加100，最后结果是1100，就出现了数据混乱的问题。在InnoDB中隔离性怎么实现呢？这个我们后面再详细分析。</p>
+</li>
+<li><p>持久性（Durability），事务的持久性是什么意思呢？我们对数据库的任意的操作，增删改，只要事务提交成功，那么结果就是永久性的，不可能因为数据库掉电、 宕机、意外重启，又变成原来的状态。这个就是事务的持久性。持久性怎么实现呢？回想一下，InnoDB崩溃恢复(crash-safe)是通过什么实现的?持久是通过redo log和double write buffer (双写缓冲)来实现的，我们操作数据的时候，会先写到内存的buffer pool里面，同时记录red log，如果在刷盘之前出现异常，在重启后就可以读取redo log的内容，写入到磁盘，保证数据的持久性。当然，恢复成功的前提是数据页本身没有被破坏，是完整的，这个通过双写缓冲保证。</p>
+</li>
+<li><p>一致性（Consistent），指的是数据库的完整性约束没有被破坏，事务执行的前后都是合法的数据状态。数据库自身提供了一些约束：比如主键必须是唯一的，字段长度符合要求。另外还有用户自定义的完整性。比如说转账的这个场景，A账户余额减少1000， B账户余额只增加了 500，两个操作都成功了，它是满足原子性的定义的，但是它不满足用户自定义的一致性，因为它导 致了会计科目的不平衡。还有一种情况，A账户余额为0，如果这个时候转账成功了，A账户的余额会变成-1000，虽然它也满足原子性，但是我们知道，借记卡的余额是不能够小于0的，所以也违反了一致性。用户自定义的完整性通常要在代码中控制。</p>
+</li>
+</ul>
+<blockquote>
+<p>需要注意的是，原子性，隔离性，持久性，最后都是为了实现一致性。</p>
+</blockquote>
+<h3 id="数据库什么时候会出现事务"><a href="#数据库什么时候会出现事务" class="headerlink" title="数据库什么时候会出现事务"></a>数据库什么时候会出现事务</h3><p>当我执行这样一条更新语句的时候，它有事务吗?</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">update student set name &#x3D;&#39;test&#39; where id&#x3D;1;</span><br></pre></td></tr></table></figure>
+
+<p> 实际上，它不仅自动开启了一个事务，而且自动提交了，所以最终写入了磁盘。这个是开启事务的第一种方式，增删改的语句会自动开启事务，当然是一条SQL 一 个事务。注意每个事务都是有编号的，这个编号是一个整数，有递增的特性。如果要把多条SQL放在一个事务里面，就要手动开启事务。手动开启事务有两种方 式： 一种是用 begin， —种是用 start transaction。那么怎么结束一个事务呢？结束也有两种方式：第一种是回滚事务rollback，事务 结束。第二种就是提交一个事务，commit，事务结束。InnoDB里面有一个autocommit的参数（分为两个级别，session级别和global 级别）。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;autocommit&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>它的默认值是ON。autocommit这个参数是什么意思呢？是否自动提交。如果它的 值是true/on的话，我们在操作数据的时候，会自动提交事务。否则的话，如果我们把autocommit设置成false/off，那么数据库的事务就需要我 们手动地结束，用rollback或者commit。还有一种情况，客户端的连接断开的时候，事务也会结束。</p>
+<h3 id="事务并发会带来哪些问题"><a href="#事务并发会带来哪些问题" class="headerlink" title="事务并发会带来哪些问题"></a>事务并发会带来哪些问题</h3><ul>
+<li><p>脏读</p>
+<p>我们有两个事务，一个是事务编号2673， —个是事务编号2674。在第一个事务里 面，它首先通过一个where id = 1的条件査询一条数据，返回name二Ada， age=16的 这条数据。然后第二个事务呢，它同样地是去操作id = 1的这行数据，它通过一个update的语句，把这行id = 1的数据的age改成了 18，但是大家注意，它没有提交。这个时候，在第一个事务里面，它再次去执行相同的查询操作，发现数据发生了变化，获取到的数据age变成了 18。那么，这种在一个事务里面，由于其他的时候修改了 数据并且没有提交，而导致了前后两次读取数据不一致的情况。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">图片</span><br></pre></td></tr></table></figure></li>
+<li><p>不可重复读、</p>
+<p>如果在转账的案例里面，我们第一个事务基于读取到的第二个事务未提交的余额进 行了操作，但是第二个事务进行了回滚，这个时候就会导致数据不一致。同样是两个事务，第一个事务通过id=1査询到了一条数据。然后在第二个事务里面 执行了一个up date操作，这里大家注意一下，执行了 up date以后它通过一个commit 提交了修改。然后第一个事务读取到了其他事务已提交的数据导致前后两次读取数据不 一致的情况，就像这里，age到底是等于16还是18，那么这种事务并发带来的问题， 我们把它叫做什么？这种一个事务读取到了其他事务已提交的数据导致前后两次读取数据不一致的情况，我们把它叫做<code>不可重复读</code>。、</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">图片</span><br></pre></td></tr></table></figure></li>
+<li><p>幻读</p>
+<p>在第一个事务里面我们执行了一个范围查询，这个时候满足条件的数据只有一条。在第二个事务里面，它插入了一行数据，并且提交了。重点：插入了一行数据。在第一 个事务里面再去查询的时候，它发现多了一行数据。这种情况就好像突然冒出来的一个 幻影一样，我们把它叫做什么呢？一个事务前后两次读取数据数据不一致，是由于其他事务插入数据造成的，这种情 况我们把它叫做<code>幻读</code>。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">图片</span><br></pre></td></tr></table></figure></li>
+</ul>
+<p>不可重复读和幻读最大的区别在那里呢？</p>
+<p>修改或者删除造成的读不一致叫做不可重复读，插入造成的读不一致叫做幻读。</p>
+<p>这里有两个点务必要跟大家说明一下：</p>
+<p>1、一个事务读取到其他事务最新提交的数据，这不是正常的吗？当然是正常的，所 以我们这里讨论的是读一致性。读一致性的意义就是一个事务的select操作跟其他事务 没有瓜葛，你不需要修改数据，所以不需要获取最新的数据，这样能够提高并发性能。</p>
+<p>2、如果在第一个事务里面，select以后，再执行一个update，就能获取到第二个事务的最新数据，这个怎么解释？同样的，这个也脱离了读一致性的讨论范畴。如果要 修改数据，必然会读取到最新的数据，也会影响其他的事务。所以这里要不要修改，要不要读取到最新的数据，是一个区别点。目前我们讨论的都是在一个事务里面多次重复读取。</p>
+<blockquote>
+<p>小结：我们刚才讲了事务并发带来的三大问题，现在来给大家总结一下。无论是脏读，还是不可重复读，还是幻读，它们都是数据库的读一致性的问题，都在一个事务 里面前后两次读取出现了不一致的情况。读一致性的问题，必须要由数据库提供一定的事务隔离机制来解决。就像我们去饭店吃饭，基本的设施和卫生保证都是饭店提供的。那么我们使用数据库，隔离性的问题 也必须由数据库帮助我们来解决。</p>
+</blockquote>
+<h3 id="SQL92标准事务隔离级别定义"><a href="#SQL92标准事务隔离级别定义" class="headerlink" title="SQL92标准事务隔离级别定义"></a>SQL92标准事务隔离级别定义</h3><p>美国国家标准协会(ANSI)制定了一个SQL标准，也就是说建议数据库厂商都按照这个标准，提供一定的事务隔离级别，来解决事务并发的问题。这个SQL标准有很多的版本，大家最熟悉的是SQL92标准。</p>
+<p><a href="https://arxiv.org/ftp/cs/papers/0701/0701157.pdf">https://arxiv.org/ftp/cs/papers/0701/0701157.pdf</a></p>
+<table>
+<thead>
+<tr>
+<th>Isolation Level</th>
+<th>P1 (or A1) Dirty Read</th>
+<th>P2 (or A2) Fuzzy Read</th>
+<th>P3 (or A3) Phantom</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ANSI READ UNCOMMITTED</td>
+<td>Possible</td>
+<td>Possible</td>
+<td>Possible</td>
+</tr>
+<tr>
+<td>ANSI READ COMMITTED</td>
+<td>Not Possible</td>
+<td>Possible</td>
+<td>Possible</td>
+</tr>
+<tr>
+<td>ANSI REPEATABLE READ</td>
+<td>Not Possible</td>
+<td>Not Possible</td>
+<td>Possible</td>
+</tr>
+<tr>
+<td>ANOMALY SERIALIZABLE</td>
+<td>Not Possible</td>
+<td>Not Possible</td>
+<td>Not Possible</td>
+</tr>
+</tbody></table>
+<p>里面定义了四个隔离级别，右边的P1，P2，P3就是代表事务并发的3个问题，脏读，不可重复读，幻读。Possible代表在这个隔离级别下，这个问题有可能发生，换句话说，没有解决这个问题。Not Possible就是解决了这个问题。我们详细地分析一下这4个隔离级别是怎么定义的。</p>
+<ul>
+<li>Read Uncommitted （未提交读）一个事务可以读取到其 他事务未提交的数据，会出现脏读，所以叫做RU，它没有解决任^的问题。</li>
+<li>Read Committed （已提交读）也就是一个事务只能读取 到其他事务已提交的数据，不能读取到其他事务未提交的数据，它解决了脏读的问题， 但是会出现不可重复读的问题。</li>
+<li>Repeatable Read （可重复读）它解决了不可重复读的问题， 也就是在同一个事务里面多次读取同样的数据结果是一样的，但是在这个级别下，没有 定义解决幻读的问题。</li>
+<li>Serializable （串行化）在这个隔离级别里面，所有的事务都是串 行执行的，也就是对数据的操作需要排队，已经不存在事务的并发操作了，所以它解决 了所有的问题。</li>
+</ul>
+<p>事务隔离级别是可以修改的</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">set global transaction isolation level read uncommitted;</span><br><span class="line">set global transaction isolation level read committed;</span><br><span class="line">set global transaction isolation level repeatable read;</span><br><span class="line">set global transaction isolation level serializable;</span><br></pre></td></tr></table></figure>
+
+<p>这个是SQL92的标准，但是不同的数据库厂商或者存储引擎的实现有一定的差异，比如Oracle里面就只有两种RC （已提交读）和Serializable （串行化）。那么MySQL 中支持事务的存储引擎InnoDB的实现又是怎么样的呢？</p>
+<h3 id="InnoDB事务隔离级别的实现"><a href="#InnoDB事务隔离级别的实现" class="headerlink" title="InnoDB事务隔离级别的实现"></a>InnoDB事务隔离级别的实现</h3><table>
+<thead>
+<tr>
+<th>事务隔离级别</th>
+<th>脏读</th>
+<th>不可重复读</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>未提交读(Read Uncommitted )</td>
+<td>可能</td>
+<td>可能</td>
+<td>可能</td>
+</tr>
+<tr>
+<td>已提交读(Read Committed )</td>
+<td>可能</td>
+<td>可能</td>
+<td>可能</td>
+</tr>
+<tr>
+<td>可重复读(Repeatable Read)</td>
+<td>不可能</td>
+<td>不可能</td>
+<td>对InnoDB不可能</td>
+</tr>
+<tr>
+<td>串行化(Serializable )</td>
+<td>不可能</td>
+<td>不可能</td>
+<td>不可能</td>
+</tr>
+</tbody></table>
+<p>InnoDB支持的四个隔离级别和SQL92定义的完全一致，隔离级别越高，事务的并 发度就越低。唯一的区别就在于，InnoDB在RR的级别就解决了幻读的问题。也就是说，不需要使用串行化的隔离级别去解决所有问题，既保证了数据的一致性，又支持较高的并发度。这个就是InnoDB默认使用RR作为事务隔离级别的原因。</p>
+<h3 id="读一致性解决方案"><a href="#读一致性解决方案" class="headerlink" title="读一致性解决方案"></a>读一致性解决方案</h3><p>如果要解决读一致性的问题，保证一个事务中前后两次读取数据结果一致，实现事务隔离，总体上来说，我们有两大类的方案。</p>
+<h3 id="LBCC"><a href="#LBCC" class="headerlink" title="LBCC"></a>LBCC</h3><p>既然要保证前后两次读取数据一致，那么我读取数据的时候，锁定我要操 作的数据，不允许其他的事务修改就行了。这种方案我们叫做基于锁的并发控制Lock Based Concurrency Control (LBCC)。</p>
+<p>如果仅仅是基于锁来实现事务隔离，一个事务读取的时候不允许其他时候修改，那 就意味着不支持并发的读写操作，而我们的大多数应用都是读多写少的，这样会极大地 影响操作数据的效率。</p>
+<h3 id="MVCC"><a href="#MVCC" class="headerlink" title="MVCC"></a>MVCC</h3><p>所以我们还有另一种解决方案，如果要让一个事务前后两次读取的数据保持一致， 那么我们可以在修改数据的之前给它建立一个备份或者叫快照，后面再来读取这个快照 就行了。这种方案我们叫做多版本的并发控制Multi Version Concurrency Control （MVCC）。 </p>
+<p>MVCC的原则：</p>
+<ul>
+<li>一个事务能看到的数据版本<ul>
+<li>  第一次查询之前已经提交的事务的修改</li>
+<li>本事务的修改</li>
+</ul>
+</li>
+<li>一个事务不能看见的数据版本：<ul>
+<li>在本事务第一次查询之后创建的事务（事务ID比我的事务ID大）</li>
+<li>活跃的（未提交的）事务的修改</li>
+</ul>
+</li>
+</ul>
+<p>MVCC的效果：我可以査到在我这个事务开始之前已经存在的数据，即使它在后面被修改或者删除了。而在我这个事务之后新增的数据，我是查不到的。所以我们才把这个叫做快照，不管别的事务做任何增删改查的操作，它只能看到第 一次查询时看到的数据版本。</p>
+<p>下面我们来分析一下MVCC的原理。首先，InnoDB的事务都是有编号的，而且会 不断递增。InnoDB为每行记录都实现了两个隐藏字段：</p>
+<p><code>DB_TRX_ID</code>， 6字节：事务ID数据是在哪个事务插入或者修改为新数据的，就记录为当前事务ID。</p>
+<p><code>DB_ROLL_PTR</code>， 7字节：回滚指针（我们把它理解为删除版本号，数据被删除或记录为旧数据的时候，记录当前事务ID，没有修改或者删除的时候是空）</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th align="center"><code>DB_TRX_ID</code></th>
+<th>DB_ROLL_PTR</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>aa</td>
+<td align="center">01</td>
+<td>NULL</td>
+</tr>
+</tbody></table>
+<p>第一个事务，初始化数据（检查初始数据）</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction1</span><br><span class="line">begin;</span><br><span class="line">insert into mvcctest valuestNULL， &#39;test1&#39;）;</span><br><span class="line">insert into mvcctest values（NULL， &#39;test2&#39;）;</span><br><span class="line">commit;</span><br></pre></td></tr></table></figure>
+
+<p>此时的数据，创建版本是当前事务ID （假设事务编号是1），删除版本为空：</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>创建版本</th>
+<th>删除版本</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>test1</td>
+<td>1</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>2</td>
+<td>test2</td>
+<td>1</td>
+<td>undefined</td>
+</tr>
+</tbody></table>
+<p>第二个事务，执行第1次查询，读取到两条原始数据，这个时候事务ID是2：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction2</span><br><span class="line">begin;</span><br><span class="line">select * from mvcctest; #(1)第一次查询</span><br></pre></td></tr></table></figure>
+
+<p>第三个事务，插入数据：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Iransaction3</span><br><span class="line">begin;</span><br><span class="line">insert into mvcctest values(NULL，&#39;test3&#39;);</span><br><span class="line">commit;</span><br></pre></td></tr></table></figure>
+
+<p>此时的数据，多了一条<code>test3</code>，它的创建版本号是当前事务编号3：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>name</th>
+<th>创建版本</th>
+<th>删除版</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>test1</td>
+<td>1</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>2</td>
+<td>test2</td>
+<td>1</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>3</td>
+<td>test3</td>
+<td><code>3</code></td>
+<td>undefined</td>
+</tr>
+</tbody></table>
+<p>第二个事务，执行第2次查询：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction2</span><br><span class="line">begin;</span><br><span class="line">select * from mvcctest; # (2)第二次查询</span><br></pre></td></tr></table></figure>
+
+<p>MVCC的査找规则：只能査找创建时间小于等于当前事务ID的数据，和删除时间大于当前事务ID的行（或未删除）。也就是不能查到在我的事务开始之后插入的数据，tom的创建ID大于2，所以还是只能査到两条数据。</p>
+<p>第四个事务，删除数据，删除了 id=2，<code>test2</code>这条记录：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction4</span><br><span class="line">begin;</span><br><span class="line">delete from mvcctest where id&#x3D;2;</span><br><span class="line">commit;</span><br></pre></td></tr></table></figure>
+
+<p>此时的数据，<code>test2</code>的删除版本被记录为当前事务ID4，其他数据不变：</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>创建版本</th>
+<th>删除版本</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>test1</td>
+<td>1</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>2</td>
+<td>test2</td>
+<td>1</td>
+<td><code>4</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>test3</td>
+<td>3</td>
+<td>undefined</td>
+</tr>
+</tbody></table>
+<p>在第二个事务中，执行第3次査询：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction2</span><br><span class="line">begin;</span><br><span class="line">select * from mvcctest; # (3)第三次查询</span><br></pre></td></tr></table></figure>
+
+<p>查找规则：只能查找创建时间小于等于当前事务ID的数据，和删除时间大于当前事 务ID的行（或未删除）。也就是，在我事务开始之后删除的数据，所以<code>test2</code>依然可以查出来。所以还是这 两条数据。</p>
+<p>第五个事务，执行更新操作，这个事务事务ID是5：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># iransaction4</span><br><span class="line">begin;</span><br><span class="line">update mvcctest set name &#x3D;&#39;盆鱼宴&#39; where id&#x3D;1;</span><br><span class="line">commit;</span><br></pre></td></tr></table></figure>
+
+<p>此时的数据，更新数据的时候，旧数据的删除版本被记录为当前事务ID 5 (undo)，产生了一条新数据，创建ID为当前事务ID5:</p>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>name</th>
+<th>创建版本</th>
+<th>删除版本</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>test1</td>
+<td>1</td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>test2</td>
+<td>1</td>
+<td>4</td>
+</tr>
+<tr>
+<td>3</td>
+<td>test3</td>
+<td>3</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>1</td>
+<td>盆鱼宴</td>
+<td><code>5</code></td>
+<td>undefined</td>
+</tr>
+</tbody></table>
+<p>第二个事务，执行第4次查询：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># Transaction2</span><br><span class="line">begin;</span><br><span class="line">select * from mvcctest; # (4)第四次查询</span><br></pre></td></tr></table></figure>
+
+<p>查找规则：只能查找创建时间小于等于当前事务ID的数据，和删除时间大于当前事 务ID的行(或未删除)。因为更新后的数据penyuyan创建版本大于2，代表是在事务之后增加的，查不出来。而旧数据qingshan的删除版本大于2，代表是在事务之后删除的，可以查出来。</p>
+<p>通过以上演示我们能看到，通过版本号的控制，无论其他事务是插入、修改、删除， 第一个事务查询到的数据都没有变化。这个是MVCC的效果。当然，这里是一个简化的模型。</p>
+<p>假设一条数据修改了3次，两次提交了一次未提交。每次修改之后都有开启一个事务去查询，那么事务2、4、6査到的数据会有不一样。</p>
+<table>
+<thead>
+<tr>
+<th>trx id</th>
+<th>SQL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>trxl</td>
+<td>update userjnfo set name=’penyuyan’ where id=l; commit;</td>
+</tr>
+<tr>
+<td>trx2</td>
+<td>select name from userjnfo where id=l;</td>
+</tr>
+<tr>
+<td>trx3</td>
+<td>update userjnfo set name=’wuyanzu’ where id=l; commit;</td>
+</tr>
+<tr>
+<td>trx4</td>
+<td>select name from userjnfo where id=l;</td>
+</tr>
+<tr>
+<td>trx5</td>
+<td>update userjnfo set name=，liudehua， where id=l; 未提交</td>
+</tr>
+<tr>
+<td>trx6</td>
+<td>select name from userjnfo where id=l;</td>
+</tr>
+<tr>
+<td></td>
+<td>trx2、4、6再各查一次</td>
+</tr>
+</tbody></table>
+<p>InnoDB中，一条数据的旧版本，是存放在哪里的呢？ undo logo因为修改了多次， 这些undo log会开，成一个链条，叫做undo log链，现在undo log里面有deihua、yanzu、yuyan。</p>
+<p>所以前面我们说的<code>DB_ROLL_PTR</code>，它其实就是指向<code>undo log</code>链的指针。</p>
+<p>所以，我们必须要有一个数据结构，把本事务心、活跃事务ID、当前系统最大事务ID存起来，这样才能实现判断。这个数据结构就叫<code>Read View</code>（可见性视图），每个事务都维护一个自己的<code>Read View</code>。</p>
+<img src="/2021/06/13/Mysql%E4%BA%8B%E5%8A%A1%E4%B8%8E%E9%94%81/image-20210430005830808.png" alt="image-20210501010707747" style="zoom:67%;">
+
+<ul>
+<li><p>m_ids 表示在生成ReadView时当前系统中活跃的读写事务的事务id列表。</p>
+</li>
+<li><p> min_trx_id 表示在生成ReadView时当前系统中活跃的读写事务中最小的事务id，也就是m ids中的最小值。</p>
+</li>
+<li><p>max_trx_id 表示生成ReadView时系统中应该分配给下一个事务的id值。</p>
+</li>
+<li><p>creator_trx_id 表示生成该ReadView的事务的事务id。</p>
+</li>
+</ul>
+<p>有了这个数据结构以后，事务判断可见性的规则是这样的：</p>
+<ul>
+<li>从数据的最早版本开始判断（undo log）。</li>
+<li>数据版本的trx_id = creator trx id，本事务修改’可以访问。</li>
+<li>数据版本的trx_id &lt; min_trx_id （未提交事务的最小ID），说明这个版本在 生成ReadView已经提交，可以访问。</li>
+<li>数据版本的trx id &gt; max_trx_id （下一个事务ID），这个版本是生成ReadView 之后才开启的事务建立的，不能访问。</li>
+<li>数据版本的trx id在min trx id和max_trx_id之间，看看是否在m ids中。 如果在，不可以。如果不在，可以。</li>
+<li>如果当前版本不可见，就找undo log链中的下一个版本。</li>
+</ul>
+<blockquote>
+<p>注意：</p>
+<p>RR中Read View是事务第一次査询的时候建立的。RC的Read View是事务每次查询的时候建立的。</p>
+<p>Oracle. Postgres等等其他数据库都有MVCC的实现。需要注意，在InnoDB中，MVCC和锁是协同使用的，这两种方案并不是互斥的。</p>
+</blockquote>
+<h2 id="InnoDB锁的基本类型"><a href="#InnoDB锁的基本类型" class="headerlink" title="InnoDB锁的基本类型"></a>InnoDB锁的基本类型</h2><h3 id="锁的粒度"><a href="#锁的粒度" class="headerlink" title="锁的粒度"></a>锁的粒度</h3><p>Mysql 存储引擎中，InnoDB 和 MyISAM支持的锁的类型是不同的，MylSAM只支持表锁，用lock table的语法加锁。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">lock tables xxx read;</span><br><span class="line">lock tables xxx write;</span><br><span class="line">unlock tables ;</span><br></pre></td></tr></table></figure>
+
+<p>而InnoDB同时支持表锁和行锁。</p>
+<table>
+<thead>
+<tr>
+<th>锁定粒度</th>
+<th>加锁效率</th>
+<th>冲突概率</th>
+<th>并发性能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>表锁 &gt; 行锁</td>
+<td>表锁 &gt; 行锁</td>
+<td>表锁 &gt; 行锁</td>
+<td>表锁 &lt; 行锁</td>
+</tr>
+</tbody></table>
+<h3 id="锁的类型"><a href="#锁的类型" class="headerlink" title="锁的类型"></a>锁的类型</h3><p>This section describes lock types used by <code>InnoDB</code>.</p>
+<ul>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-shared-exclusive-locks">Shared and Exclusive Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-intention-locks">Intention Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-record-locks">Record Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-gap-locks">Gap Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-next-key-locks">Next-Key Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-insert-intention-locks">Insert Intention Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-auto-inc-locks">AUTO-INC Locks</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html#innodb-predicate-locks">Predicate Locks for Spatial Indexes</a></li>
+</ul>
+<p>我们可以看到，官网把锁分成了 8类。我们把前面的两个行级别的锁(<code>Shared and Exclusive Locks</code>)，和两个表级别的锁(<code>Intention Locks</code>)称为锁的基本模式。后面三个<code>Record Locks</code>、<code> Gap Locks</code>、 <code>Next-Key Locks</code>，我们把它们叫做锁的算法， 也就是分别在什么情况下锁定什么范围。</p>
+<ul>
+<li><p>插入意向锁：是一个特殊的间隙锁。间隙锁不允许插入数据，但是插入意向锁允许 多个事务同时插入数据到同一个范围。比如(4，7)， —个事务插入5， —个事务插入6，不 会发生锁等待。</p>
+</li>
+<li><p>自增锁：是一种特殊的表锁，用来防止自增字段重复，数据插入以后就会释放，不 需要等到事务提交才释放。如果需要选择更快的自增值生成速度或者更加连续的自增值， 就要通过修改自增锁的模式改变。</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;Innodb_autoinc_lock_mode&#39;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>0: traditonal (每次都会产生表锁)。</p>
+</li>
+<li><p>1: consecutive (会产生一个轻量锁，simple insert会获得批量的锁，保证连续插入，默认值)。</p>
+</li>
+<li><p>2: interleaved （不会锁表，来一个处理一个，并发最高）。</p>
+</li>
+</ul>
+<p>Predicate Locks for Spatial Indexes是5.7版本里面新增的一种数据类型的索引的锁。</p>
+<h3 id="共享锁"><a href="#共享锁" class="headerlink" title="共享锁"></a>共享锁</h3><p>第一个行级别的锁就是我们在官网看到的<code>Shared Locks</code>（共享锁），我们获取了一 行数据的读锁以后，可以用来读取数据，所以它也叫做读锁，注意不要在加上了读锁以 后去写数据，不然的话可能会出现死锁的情况。而且多个事务可以共享一把读锁。</p>
+<p>共享锁的作用：因为共享锁会阻塞其他事务的修改，所以可以用在不允许其他事务修改数据的情况（共享锁和写锁互斥的例子后面再看）。</p>
+<p>那怎么给一行数据加上读锁呢？</p>
+<p>我们可以用**select     ….. lock in share mode;**的方式手工加上一把读锁。</p>
+<p>释放锁有两种方式，只要事务结束，锁就会自动事务，包括提交事务和结束事务。</p>
+<p>验证一下，看看共享锁是不是可以重复获取。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM student WHERE id= 1 LOCK IN SHARE MODE;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>begin;</td>
+</tr>
+<tr>
+<td></td>
+<td>SELECT * FROM student WHERE id=1 LOCK IN SHARE MODE;  #OK</td>
+</tr>
+</tbody></table>
+<h3 id="排他锁"><a href="#排他锁" class="headerlink" title="排他锁"></a>排他锁</h3><p>第二个行级别的锁叫做<code>Exclusive Locks</code>（排它锁），它是用来操作数据的，所以又 叫做写锁。只要一个事务获取了一行数据的排它锁，其他的事务就不能再获取这一行数 据的共享锁和排它锁。排它锁的加锁方式有两种，第一种是自动加排他锁，可能是同学们没有注意到的： 我们在操作数据的时候，包括增删改，都会默认加上一个排它锁。还有一种是手工加锁，我们用一个FOR UPDATE给一行数据加上一个排它锁，这个 无论是在我们的代码里面还是操作数据的工具里面，都比较常用。释放锁的方式跟前面是一样的。</p>
+<p>排他锁的验证：</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>UPDATE student SET sname =’李大彪 555’ WHERE id=1;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>begin;</td>
+</tr>
+<tr>
+<td></td>
+<td>SELECT * FROM student WHERE id=1 LOCK IN SHARE MODE;  # BLOCKED<br>SELECT * FROM student where id=1 FOR UPDATE;   # BLOCKED <br>DELETE FROM student where id=1;  # BLOCKED</td>
+</tr>
+</tbody></table>
+<p>这个是两个行锁，接下来就是两个表锁。</p>
+<h3 id="意向锁"><a href="#意向锁" class="headerlink" title="意向锁"></a>意向锁</h3><p>意向锁是什么呢？我们好像从来没有听过，也从来没有使用过，其实他们是由数据 库自己维护的。也就是说，当我们给一行数据加上共享锁之前，数据库会自动在这张表上面加一个 意向共享锁。当我们给一行数据加上排他锁之前，数据库会自动在这张表上面加_个意向排他锁。反过来：如果一张表上面至少有一个意向共享锁<strong>，</strong>说明有其他的事务给其中的某些数据行加上了共享锁。如果一张表上面至少有一个意向排他锁，说明有其他的事务给其中的某些数据行加 上了排他锁。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * firom t2 where id &#x3D;4 for update;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>TABLE LOCK table ‘gupao’.’t2’ trx id 24467 lock mode IX</p>
+<p>RECORD LOCKS space id 64 page no 3 n bits 72 index PRIMARY of table、gupao’・、t2’ trx id 24467 lock_mode X locks rec but not gap</p>
+</blockquote>
+<p>意向锁跟意向锁是不冲突的，意向锁跟行锁也不冲突。那么这两个表级别的锁存在的意义是什么呢？</p>
+<p>如果说没有意向锁的话，当我们准备给一张表加上表锁的时候，我们首先要做什么？ 是不是必须先要去判断有没其他的事务锁定了其中了某些行？如果有的话，肯定不能加 上表锁。那么这个时候我们就要去扫描整张表才能确定能不能成功加上一个表锁，如果 数据量特别大，比如有上千万的数据的时候，加表锁的效率是不是很低？但是我们引入了意向锁之后就不一样了。我只要判断这张表上面有没有意向锁，如 果有，就直接返回失败。如果没有，就可以加锁成功。所以InnoDB里面的表锁，我们 可以把它理解成一个标志。就像火车上卫生间有没有人使用的灯，让你不用去推门，是 用来提高加锁的效率的。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM student where id=l FOR UPDATE;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>BEGIN;</td>
+</tr>
+<tr>
+<td></td>
+<td>LOCK TABLES student WRITE; # BLOCKED UNLOCK TABLES; # 释放表锁的方式</td>
+</tr>
+</tbody></table>
+<p>锁的作用：它跟Java里面的锁是一样的，是为了解决资源竞争的问题，Java 里面的资源是对象，数据库的资源就是数据表或者数据行。所以锁是用来解决事务对数据的并发访问的问题的。</p>
+<p>锁到底锁住了什么呢？当一个事务锁住了一行数据的时候，其他的事务不能操作这一行数据，那它到底是锁住了这一行数据，还是锁住了这一个字段，还是锁住了别的什么东西呢？</p>
+<h2 id="锁的原理"><a href="#锁的原理" class="headerlink" title="锁的原理"></a>锁的原理</h2><h3 id="没有索引的表（假设锁住记录）"><a href="#没有索引的表（假设锁住记录）" class="headerlink" title="没有索引的表（假设锁住记录）"></a>没有索引的表（假设锁住记录）</h3><p>首先我们有三张表，一张没有索引的t1，一张有主键索引的t2，一张有唯一索引的 t3。</p>
+<p>我们先假设InnoDB的行锁锁住了是一行数据或者一条记录。</p>
+<p>我们先来看一下t1的表结构，它有两个字段，int类型的id和varchar类型的name。</p>
+<p>里面有4条数据，1、2、3、4。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>SELECT * FROM tl WHERE id =1 FOR UPDATE;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>select * from tl where id=3 for update; # blocked</td>
+</tr>
+<tr>
+<td></td>
+<td>INSERT INTO ‘tl’ (‘id’， ‘name’) VALUES (5， S); # blocked</td>
+</tr>
+</tbody></table>
+<p>我们在两个会话里面手工开启两个事务。</p>
+<p>在第一个事务里面，我们通过where id =1锁住第一行数据。</p>
+<p>在第二个事务里面，我们尝试给id = 3的这一行数据加锁，能成功吗？</p>
+<p>很遗憾，我们看到红灯亮起，这个加锁的操作被阻塞了。这就有点奇怪了，第一个事务锁住了 id = 1的这行数据，为什么我不能操作id=3的数据呢？</p>
+<p>我们再来操作一条不存在的数据，插入id=5。它也被阻塞了。实际上这里整张表都 被锁住了。所以，我们的第一个猜想被推翻了，<strong>InnoDB的行锁锁住的应该不是Record</strong>。</p>
+<h3 id="有主键索引的表"><a href="#有主键索引的表" class="headerlink" title="有主键索引的表"></a>有主键索引的表</h3><p>我们看一下t2的表结构。字段是一样的，不同的地方是id上创建了一个主键索引。里面的数据是1、4、7、10。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>select * from t2 where id=l for update;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>select * from t2 where id=l for update; // blocked</td>
+</tr>
+<tr>
+<td></td>
+<td>select * from t2 where id=4 for update; // OK</td>
+</tr>
+</tbody></table>
+<p>第一种情况，使用相同的id值去加锁，冲突；使用不同的id加锁，可以加锁成功。 那么，既然不是锁定_行数据，有没有可能是锁住了 id的这个字段呢？</p>
+<h3 id="唯一索引（假设锁住字段）"><a href="#唯一索引（假设锁住字段）" class="headerlink" title="唯一索引（假设锁住字段）"></a>唯一索引（假设锁住字段）</h3><p>我们看一下t3的表结构。字段还是一样的，id上创建了一个主键索引，name上 创建了一个唯一索引。里面的数据是1、4、7、10。</p>
+<table>
+<thead>
+<tr>
+<th>Transaction1</th>
+<th>Transaction 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;</td>
+<td></td>
+</tr>
+<tr>
+<td>select * from t3 where name= ‘4’ for update;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>select * from t3 where name = ‘4’ for update; // blocked</td>
+</tr>
+<tr>
+<td></td>
+<td>select * from t3 where id = 4 for update; // blocked</td>
+</tr>
+</tbody></table>
+<p>在第一个事务里面，我们通过name字段去锁定值是4的这行数据。</p>
+<p>在第二个事务里面，尝试获取一样的排它锁，肯定是失败的，这个不用怀疑。</p>
+<p>在这里我们怀疑InnoDB的行锁锁住的是字段，所以这次我换一个字段，用id=4去 给这行数据加锁，能成功吗？</p>
+<p>很遗憾，又被阻塞了，说明行锁锁住的是字段的这个推测也是错的，否则就不会出 现第一个事务锁住了 name，第二个字段锁住id失败的情况。</p>
+<p>既然锁住的不是record，也不是column， InnoDB的行锁锁住的到底是什么呢？在 这三个案例里面，我们要去分析一下他们的差异在哪里，也就是这三张表的结构，是什 么区别导致了加锁的行为的差异？其实答案就是索引。InnoDB的行锁，就是通过锁住索 引来实现的。</p>
+<h2 id="锁的算法"><a href="#锁的算法" class="headerlink" title="锁的算法"></a>锁的算法</h2><h2 id="事务隔离级别怎么选"><a href="#事务隔离级别怎么选" class="headerlink" title="事务隔离级别怎么选"></a>事务隔离级别怎么选</h2><p>RU和Serializable肯定不能用。为什么有些公司要用RC，或者说网上有些文章推荐RC。</p>
+<p>RC和RR主要有几个区别：</p>
+<ul>
+<li>RR的间隙锁会导致锁定范围的扩大。</li>
+<li>条件列未使用到索弓I， RR锁表，RC锁行。</li>
+<li>RC的”半一致性”（semi-consistent）读可以增加update操作的并发性。</li>
+<li>在RC中，一update语句，如果读到一行已经加锁的记录，此时InnoDB返回记 录最近提交的版本，由MySQL上层判断此版本是否满足update的where条件。若满足(需要更新)，则MySQL会重新发起一次读操作，此时会读取行的最新版本(并加锁)。</li>
+</ul>
+<p>使用RC的好处：</p>
+<blockquote>
+<p>Using read committed as additional effects:</p>
+<p>o For <code>update</code> or <code>delete</code> statements， InnoDB holds locks only for rows that it updates or deletes. Record locks for nonmatching rows are released after MySQL has evaluated the where condition. This greatly reduces the probability of deadlocks， but they can still happen.</p>
+<p>o For <code>update</code> statements， if a row is already locked， InnoDB performs a “scmi-consistent” read， returning the latest committed version to MySQL so that MySQL can determine whether the row matches the where condition of the update. If the row matches (must be updated)， MySQL reads the row again and this time InnoDB either locks it or waits for a lock on it.</p>
+</blockquote>
+<p>实际上，如果能够正确地使用锁(避免不使用索引去枷锁)，只锁定需要的数据，用默认的RR级别就可以了。在我们使用锁的时候，有一个问题是需要注意和避免的，我们知道，排它锁有互斥 的特性。一个事务或者说一个线程持有锁的时候，会阻止其他的线程获取锁，这个时候 会造成阻塞等待，如果循环等待，会有可能造成死锁。这个问题我们需要从几个方面来分析，一个是锁为什么不释放，第二个是被阻塞了 怎么办，第三个死锁是怎么发生的，怎么避免。</p>
+<h2 id="死锁"><a href="#死锁" class="headerlink" title="死锁"></a>死锁</h2><h3 id="锁什么时候释放"><a href="#锁什么时候释放" class="headerlink" title="锁什么时候释放"></a>锁什么时候释放</h3><p>事务结束(commit， rollback)，客户端连接断开。</p>
+<p>如果一个事务一直未释放锁，其他事务会被阻塞多久？会不会永远等待下去？如果是，在并发访问比较高的情况下，如果大量事务因无法立即获得所需的锁而挂起，会占用大量计算机资源，造成严重性能问题，甚至拖跨数据库。</p>
+<blockquote>
+<p>[Err] 1205 - Lock wait timeout exceeded; try restarting transaction </p>
+</blockquote>
+<p>MySQL有一个参数来控制获取锁的等待时间，默认是50秒。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show VARIABLES like &#39;Innodb_lock_wait_timeout&#39;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="死锁的发生和检测"><a href="#死锁的发生和检测" class="headerlink" title="死锁的发生和检测"></a>死锁的发生和检测</h3><p>死锁演示: 案例1</p>
+<table>
+<thead>
+<tr>
+<th>0Session</th>
+<th>Session 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;<br>select * from t2 where id =1 for update;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>begin;<br>delete from t2 where id =4 ;</td>
+</tr>
+<tr>
+<td>update t2 set name= ‘4d’ where id =4 ;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>delete from t2 where id =1;</td>
+</tr>
+</tbody></table>
+<p>案例2</p>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Session 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>begin;select * from tl where id =1 lock in share mode;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>begin;select * from tl where id =1 lock in share mode;</td>
+</tr>
+<tr>
+<td>update tl set name= ‘la’ where id =1;</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>update tl set name= ‘la’ where id =1;</td>
+</tr>
+</tbody></table>
+<p>我们看到：在第一个事务中，检测到了死锁，马上退岀了，第二个事务获得了锁，不需要等待50秒：</p>
+<blockquote>
+<p>[Err] 1213 ・ Deadlock found when trying to get lock; try restarting transaction</p>
+</blockquote>
+<p>为什么可以直接检测到呢？是因为死锁的发生需要满足一定的条件，所以在发生死锁时，InnoDB —般都能通过算法(wait-for graph)自动检测到。</p>
+<p>那么死锁需要满足什么条件？死锁的产生条件，因为锁本身是互斥的：</p>
+<ul>
+<li> 同一时刻只能有一个事务持有这把锁；</li>
+<li>其他的事务需要在这个事务释放锁之后才能获取锁，而不可以强行剥夺；</li>
+<li>当多个事务形成等待环路的时候，即发生死锁</li>
+</ul>
+<h3 id="查看锁信息（日志）"><a href="#查看锁信息（日志）" class="headerlink" title="查看锁信息（日志）"></a>查看锁信息（日志）</h3><p>首先，SHOW STATUS命令中，包括了一些行锁的信息：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show status like &#39;innodb_row_lock_%&#39;;</span><br></pre></td></tr></table></figure>
+
+
+
+<table>
+<thead>
+<tr>
+<th>Variable_name</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Innodb_row_lock_waits</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_row_lock_time_max</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_row_lock_time_avg</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_row_lock_time</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_row_lock_current_waits</td>
+<td>0</td>
+</tr>
+</tbody></table>
+<ul>
+<li>lnnodb_row_lock_current_waits：当前正在等待锁定的数量；</li>
+<li>lnnodb_row_lock_time :从系统启动到现在锁定的总时间长度，单位ms； </li>
+<li>lnnodb_row_lock_time_avg :每次等待所花平均时间；</li>
+<li>lnnodb_row_lock_time_max：从系统启动到现在等待最长的一次所花的时间；</li>
+<li> lnnodb_row_lock_waits :从系统启动到现在总共等待的次数。</li>
+</ul>
+<p><strong>SHOW</strong>命令是一个概要信息。InnoDB还提供了三张表来分析事务与锁的情况:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from information_schema.INNODB_TRX; # 当前运行的所有事务，还有具体的语句</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from information_schema.INNODB_LOCKS; # 当前出现的锁</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from information_schema.INNODB_LOCK_WAITS; # 锁等待的对应的关系</span><br></pre></td></tr></table></figure>
+
+<p>更加详细的锁信息，开启标准监控和锁监控:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">set GLOBAL innodb_status_output&#x3D;ON; </span><br><span class="line">set GLOBAL innodb_status_output_locks&#x3D;ON;</span><br></pre></td></tr></table></figure>
+
+<p>如果一个事务长时间持有锁不释放，可以kill事务对应的线程ID，也就是INNODB_TRX表中的trx_mysql_thread_id，例如执行kill 4，kill 7， kill 8。当然，死锁的问题不能每次都靠kill线程来解决，这是治标不治本的行为，我们应该尽量在应用端，也就是在编码的过程中避免。</p>
+<h3 id="死锁的避免"><a href="#死锁的避免" class="headerlink" title="死锁的避免"></a>死锁的避免</h3><ul>
+<li>在程序中，操作多表时，尽量以相同的顺序来访问（避免形成等待环路）。</li>
+<li>批量操作单张表数据的时候，先对数据进行排序（避免形成等待环路）。</li>
+<li>申请足够级别的锁，如果要操作数据，就申请排他锁。</li>
+<li>尽量使用索引访问数据，避免没有where条件的操作，避免锁表。</li>
+<li>如果可以，大事务化为小事务。</li>
+<li>使用等值查询而不是范围查询查询数据，命中记录，避免间隙所对并发的影响。</li>
+</ul>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q &amp; A"></a>Q &amp; A</h2><h3 id="Q1：这个快照是怎么实现的呢？会不会占用额外的存储空间？"><a href="#Q1：这个快照是怎么实现的呢？会不会占用额外的存储空间？" class="headerlink" title="Q1：这个快照是怎么实现的呢？会不会占用额外的存储空间？"></a>Q1：这个快照是怎么实现的呢？会不会占用额外的存储空间？</h3><h3 id="Q2：事务2、4、6最后再查一次，它们去undo-log链找数据的时候，拿到的数据是不一样的。在这个undo-log链里面，一个事务怎么判断哪个版本的数据是它应该读取的呢？"><a href="#Q2：事务2、4、6最后再查一次，它们去undo-log链找数据的时候，拿到的数据是不一样的。在这个undo-log链里面，一个事务怎么判断哪个版本的数据是它应该读取的呢？" class="headerlink" title="Q2：事务2、4、6最后再查一次，它们去undo log链找数据的时候，拿到的数据是不一样的。在这个undo log链里面，一个事务怎么判断哪个版本的数据是它应该读取的呢？"></a>Q2：事务2、4、6最后再查一次，它们去undo log链找数据的时候，拿到的数据是不一样的。在这个undo log链里面，一个事务怎么判断哪个版本的数据是它应该读取的呢？</h3><h3 id="Q3：为什么支持行锁会成为InnoDB的优势？表锁和行锁的区别到底在哪？"><a href="#Q3：为什么支持行锁会成为InnoDB的优势？表锁和行锁的区别到底在哪？" class="headerlink" title="Q3：为什么支持行锁会成为InnoDB的优势？表锁和行锁的区别到底在哪？"></a>Q3：为什么支持行锁会成为InnoDB的优势？表锁和行锁的区别到底在哪？</h3><h3 id="Q4：为什么在没有索引或者没有用到索引的情况下，会锁住整张表？"><a href="#Q4：为什么在没有索引或者没有用到索引的情况下，会锁住整张表？" class="headerlink" title="Q4：为什么在没有索引或者没有用到索引的情况下，会锁住整张表？"></a>Q4：为什么在没有索引或者没有用到索引的情况下，会锁住整张表？</h3><ul>
+<li>如果我们定义了主键（PRIMARY KEY），那么InnoDB会选择主键作为聚集索引。</li>
+<li>如果没有显式定义主键，则InnoDB会选择第一个不包含有NULL值的唯一索 引作为主键索引。</li>
+<li>如果也没有这样的唯一索引，则InnoDB会选择内置6字节长的ROWID作为隐藏的聚集索引，它会随着行记录的写入而主键递增。</li>
+</ul>
+<p>所以，为什么锁表，是因为查询没有使用索引，会进行全表扫描，然后把每一个隐藏的聚集索弓I都锁住了。</p>
+<h3 id="Q4：为什么通过唯一索引给数据行加锁，主键索引也会被锁住？"><a href="#Q4：为什么通过唯一索引给数据行加锁，主键索引也会被锁住？" class="headerlink" title="Q4：为什么通过唯一索引给数据行加锁，主键索引也会被锁住？"></a>Q4：为什么通过唯一索引给数据行加锁，主键索引也会被锁住？</h3><p>在辅助索引里面，索引存储的是二级索引和主键的值。比如name=4，存储的是name的索引和主键id的值4。而主键索引里面除了索引之外，还存储了完整的数据。所以我们通过辅助索引锁定 一行数据的时候，它跟我们检索数据的步骤是一样的，会通过主键值找到主键索引，然后也锁定。本质上是因为锁定的是同一行数据，是相互冲突的。</p>
+<h2 id="待完善。。。"><a href="#待完善。。。" class="headerlink" title="待完善。。。"></a>待完善。。。</h2>]]></content>
+      <categories>
+        <category>Mysql</category>
+      </categories>
+      <tags>
+        <tag>Mysql</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Mysql architecture and SQL execution process</title>
+    <url>/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/</url>
+    <content><![CDATA[<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><blockquote>
+<p>通过篇文章可以了解到Mysql语句的执行流程，理解Mysql的架构与内部模块，掌握InnoDB存储引擎的磁盘与内存结构。</p>
+</blockquote>
+<span id="more"></span>
+
+
+
+<h2 id="一条查询SQL语句是如何执行的"><a href="#一条查询SQL语句是如何执行的" class="headerlink" title="一条查询SQL语句是如何执行的"></a>一条查询SQL语句是如何执行的</h2><p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210429234114559.png" alt="image-20210429234114559"></p>
+<h2 id="连接"><a href="#连接" class="headerlink" title="连接"></a>连接</h2><p><code>MySQL</code>服务监听的端口默认是3306,客户端连接服务端的方式有很多。</p>
+<p>可以是同步的也可以是异步的，可以是长连接也可以是短连接，可以是TCP，也可以是Unix Socket, <code>MySQL</code>有专门处理连接的模块，连接的时候需要验证权限。</p>
+<p>我们怎么查看<code>MySQL</code>当前有多少个连接？</p>
+<p>可以用show status命令，模糊匹配Thread:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show global status like &#39;Thread%&#39;;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Threads cached</td>
+<td>缓存中的线程连接数。.</td>
+</tr>
+<tr>
+<td>Threads connected</td>
+<td>当前打开的连接数。</td>
+</tr>
+<tr>
+<td>Threads created</td>
+<td>为处理连接创建的线程数。</td>
+</tr>
+<tr>
+<td>Threads running</td>
+<td>非睡眠状态的连接数，通常指并发连接数:</td>
+</tr>
+</tbody></table>
+<h2 id="查询缓存"><a href="#查询缓存" class="headerlink" title="查询缓存"></a>查询缓存</h2><p>MySQL内部自带了一个缓存模块。</p>
+<p>有一张500万行数据的表，没有索引，如果我两次执行一模一样的<code>SQL</code>语句，第二 次会不会变得很快？</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from user innodb where name&#x3D;&#39;test test&#39;；</span><br></pre></td></tr></table></figure>
+
+<p>默认关闭的意思就是不推荐使用，为什么<code>MySQL</code>不推荐使用它自带的缓存呢？ 主要是因为<code>MySQL</code>自带的缓存的应用场景有限，第一个是它要求<code>SQL</code>语句必须一 模一样，中间多一个空格，字母大小写不同都被认为是不同的的<code>SQL</code>。</p>
+<p>第二个是表里面任何一条数据发生变化的时候，这张表所有缓存都会失效，所以对 于有大量数据更新的应用，也不适合。</p>
+<p>所以缓存这一块，我们还是交给<code>0RM</code>框架(比如<code>MyBatis</code>默认开启了一级缓存)， 或者独立的缓存服务，比如<code>Redis</code>来处理更合适。</p>
+<blockquote>
+<p><code>MySQL</code> 8.0中，查询缓存已经被移除了。</p>
+</blockquote>
+<h2 id="语法解析和预处理-Parser-amp-Preprocessor"><a href="#语法解析和预处理-Parser-amp-Preprocessor" class="headerlink" title="语法解析和预处理(Parser &amp; Preprocessor)"></a>语法解析和预处理(Parser &amp; Preprocessor)</h2><p>没有使用缓存的话，就会跳过缓存的模块，下一步要做什么呢？</p>
+<p>为什么一条SQL语句能够被识别呢？假如随便执行一个字符串penyuyan,服务器</p>
+<p>报了一个1064的错:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">[Err] 1064 - You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near &#39;penyuyan&#39; at line 1</span><br></pre></td></tr></table></figure>
+
+<p>它是怎么知道我输入的内容是错误的？</p>
+<p>这个就是<code>MySQ</code>L的Parser解析器和Preprocessor预处理模块。</p>
+<p>这_步主要做的事情是对语句基于<code>SQL</code>语法进行词法和语法分析和语义的解析。</p>
+<h3 id="词法解析"><a href="#词法解析" class="headerlink" title="词法解析"></a>词法解析</h3><p>词法分析就是把一个完整的<code>SQL</code>语句打碎成一个个的单词。</p>
+<p>比如一个简单的<code>SQL</code>语句：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select name from user where id &#x3D; 1;</span><br></pre></td></tr></table></figure>
+
+<p>它会打碎成8个符号，每个符号是什么类型，从哪里开始到哪里结束。</p>
+<h3 id="语法解析"><a href="#语法解析" class="headerlink" title="语法解析"></a>语法解析</h3><p>第二步就是语法分析，语法分析会对<code>SQL</code>做一些语法检查，比如单引号有没有闭合, 然后根据<code>MySQL</code>定义的语法规则，根据<code>SQL</code>语句生成一个数据结构。这个数据结构我 们把它叫做解析树(select lex)。</p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210429234114558.png"></p>
+<p>词法语法分析是一个非常基础的功能，Java的编译器、百度搜索引擎如果要识别语 句，必须也要有词法语法分析功能。</p>
+<p>任何数据库的中间件，要解析<code>SQL</code>完成路由功能，也必须要有词法和语法分析功能, 比如<code>Mycat,</code> <code>Sharding-JDBC </code>（用到了 <code>Druid Parser</code>）。在市面上也有很多的开源的词 法解析的工具（比如LEX, Yacc） </p>
+<h3 id="预处理器"><a href="#预处理器" class="headerlink" title="预处理器"></a>预处理器</h3><p>问题：如果我写了一个词法和语法都正确的<code>SQL</code>,但是表名或者字段不存在，会在 哪里报错？是在数据库的执行层还是解析器？比如：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">select * from penyuyan;</span><br></pre></td></tr></table></figure>
+
+<p>我想了想，似乎解析器可以分析语法，但是它怎么知道数据库里面有什么表，表里 面有什么字段呢？</p>
+<p>实际上还是在解析的时候报错，解析<code>SQL</code>的环节里面有个预处理器。它会检査生成的解析树，解决解析器无法解析的语义。比如，它会检査表和列名是否存在，检査名字和别名，保证没有歧义。预处理之后得到一个新的解析树。</p>
+<h2 id="查询优化-Query-Optimizer-与查询执行计划"><a href="#查询优化-Query-Optimizer-与查询执行计划" class="headerlink" title="查询优化(Query Optimizer)与查询执行计划"></a>查询优化(Query Optimizer)与查询执行计划</h2><h3 id="什么是优化器？"><a href="#什么是优化器？" class="headerlink" title="什么是优化器？"></a>什么是优化器？</h3><p>得到解析树之后，是不是执行SQL语句了呢？</p>
+<p>这里我们有一个问题，一条SQL语句是不是只有一种执行方式？或者说数据库最终 执行的SQL是不是就是我们发送的SQL?</p>
+<p>这个答案是否定的。一条SQL语句是可以有很多种执行方式的，最终返回相同的结果，他们是等价的。但是如果有这么多种执行方式，这些执行方式怎么得到的？最终选 择哪一种去执行？根据什么判断标准去选择？</p>
+<p>这个就是MySQL的査询优化器的模块(Optimizer)。</p>
+<p>査询优化器的目的就是根据解析树生成不同的执行计划(Execution Plan),然后选 择一种最优的执行计划，MySQL里面使用的是基于开销(cost)的优化器，那种执行计 划开销最小，就用哪种。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show status like &#39;Last_query_cost&#39;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="优化器可以做什么？"><a href="#优化器可以做什么？" class="headerlink" title="优化器可以做什么？"></a>优化器可以做什么？</h3><p>MySQL的优化器能处理哪些优化类型呢?</p>
+<p>举两个简单的例子:</p>
+<ul>
+<li><p>当我们对多张表进行关联查询的时候，以哪个表的数据作为基准表。</p>
+</li>
+<li><p>有多个索弓|可以使用的时候，选择哪个索引。</p>
+</li>
+</ul>
+<p>实际上，对于每一种数据库来说，优化器的模块都是必不可少的，他们通过复杂的算法实现尽可能优化查询效率的目标。如果对于优化器的细节感兴趣，可以看看《数据库査询优化器的艺术-原理解析与SQL性能优化》</p>
+<p>但是优化器也不是万能的，并不是再垃圾的SQL语句都能自动优化，也不是每次都能选择到最优的执行计划，大家在编写SQL语句的时候还是要注意。</p>
+<p>优化完之后，得到一个什么东西呢？优化器最终会把解析树变成一个査询执行计划,查询执行计划是一个数据结构。</p>
+<p>我们怎么査看MySQL的执行计划呢？比如多张表关联查询，先査询哪张表？在执行査询的时候可能用到哪些索引，实际上用到了什么索引?</p>
+<p>MySQL提供了一个执行计划的工具。我们在SQL语句前面加上EXPLAIN,就可以看到执行计划的信息。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN select name fiom user where id&#x3D;l;</span><br></pre></td></tr></table></figure>
+
+<p>如果要得到详细的信息，还可以用<code>FORMAT=JSON</code>,或者开启<code>optimizer trace</code></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">EXPLAIN FORMAT&#x3D;JSON select name from user where id&#x3D;l;</span><br></pre></td></tr></table></figure>
+
+<h2 id="存储引擎"><a href="#存储引擎" class="headerlink" title="存储引擎"></a>存储引擎</h2><p>得到执行计划以后，SQL语句是不是终于可以执行了?</p>
+<p>问题又来了:</p>
+<ul>
+<li><p>从逻辑的角度来说，我们的数据是放在哪里的，或者说放在一个什么结构里面?</p>
+</li>
+<li><p>执行计划在哪里执行？是谁去执行?</p>
+</li>
+</ul>
+<h3 id="存储引擎基本介绍"><a href="#存储引擎基本介绍" class="headerlink" title="存储引擎基本介绍"></a>存储引擎基本介绍</h3><p>比如这三张表，都是二维的存储结构，表面上看起来是一模一样的。</p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005307887.png" alt="image-20210430005307887"></p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005348983.png" alt="image-20210430005348983"></p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;datadir&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>默认情况下，每个数据库有一个自己文件夹，以<code>ds0</code>。数据库为例。任何一个存储引擎都有一个<code>frm</code>文件，这个是表结构定义文件。</p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005830804.png" alt="image-20210430005830804"></p>
+<p>不同的存储引擎存放数据的方式不一样，产生的文件也不一样，innodb是1个, memory没有，myisam 是两个。</p>
+<p>这里我们有几个问题：</p>
+<ul>
+<li><p>表类型是怎么选择的？可以修改吗？</p>
+</li>
+<li><p>MySQL为什么支持这么多存储引擎呢？一种还不够用吗？</p>
+</li>
+<li><p>这些不同的存储引擎，到底有什么区别？</p>
+<blockquote>
+<p>.sdi结尾的文件表示</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="存储引擎选择"><a href="#存储引擎选择" class="headerlink" title="存储引擎选择"></a>存储引擎选择</h3><p>一张表的存储引擎，是在创建表的时候指定的，使用ENGINE关键字。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">CREATE TABLE &#39;user_innodb&#39;</span><br><span class="line">(</span><br><span class="line">    c_id     int(11) NOT NULL AUTO_INCREMENT,</span><br><span class="line">    c_name   varchar(255) DEFAULT NULL,</span><br><span class="line">    c_gender tinyint(1)   DEFAULT NULL,</span><br><span class="line">    c_phone  varchar(11)  DEFAULT NULL,</span><br><span class="line">    PRIMARY KEY (c_id),</span><br><span class="line">    KEY &#39;comidx_name_phone&#39; (c_name, c_phone)</span><br><span class="line">) ENGINE &#x3D; InnoDB</span><br><span class="line">  AUTO_INCREMENT &#x3D; 1</span><br><span class="line">  DEFAULT CHARSET &#x3D; utf8mb4;</span><br></pre></td></tr></table></figure>
+
+<p>没有指定的时候，数据库就会使用默认的存储引擎，5.5.5之前，默认的存储引擎是</p>
+<p>MylSAM, 5.5.5之后，默认的存储引擎是InnoDB。</p>
+<ul>
+<li><p>试想一下: 如果我有一张表，需要很高的访问速度，而不需要考虑持久化的问题，是不是要把数据放在内存?</p>
+</li>
+<li><p>如果一张表，是用来做历史数据存档的，不需要修改，也不需要索引，那它是不是要支持数据的压缩?</p>
+</li>
+<li><p>如果一张表用在读写并发很多的业务中，是不是要支持读写不干扰，而且要保证比较高的数据一致性呢?</p>
+</li>
+</ul>
+<p>说到这里大家应该明白了，为什么要支持这么多的存储引擎，就是因为我们有不同的业务需求，一种存储引擎不能提供所有的特性。</p>
+<h3 id="存储引擎比较"><a href="#存储引擎比较" class="headerlink" title="存储引擎比较"></a>存储引擎比较</h3><p>常见存储引擎 <a href="https://dev.mysql.com/doc/refman/8.0/en/storage-engines.html">https://dev.mysql.com/doc/refman/8.0/en/storage-engines.html</a></p>
+<h4 id="MylSAM-（3个文件）"><a href="#MylSAM-（3个文件）" class="headerlink" title="MylSAM （3个文件）"></a>MylSAM （3个文件）</h4><blockquote>
+<p>These tables have a small footprint. Table-level locking limits the performance in read/write workloads, so it is often used in read-only or read-mostly workloads in Web and data warehousing configurations.</p>
+</blockquote>
+<p>应用范围比较小。表级锁定限制了读/写的性能，因此在Web和数据仓库配置中，</p>
+<p>它通常用于只读或以读为主的工作。</p>
+<p>特点: 支持表级别的锁（插入和更新会锁表）。不支持事务。</p>
+<p>拥有较高的插入（insert）和查询（select）速度。</p>
+<p>存储了表的行数（count速度更快）。</p>
+<p>（怎么快速向数据库插入100万条数据？我们有一种先用MylSAM插入数据,然后</p>
+<p>修改存储引擎为InnoDB的操作。）</p>
+<p>适合：只读之类的数据分析的项目。</p>
+<h4 id="InnoDB-（2个文件）"><a href="#InnoDB-（2个文件）" class="headerlink" title="InnoDB （2个文件）"></a>InnoDB （2个文件）</h4><blockquote>
+<p>The default storage engine in MySQL 5.7. InnoDB is a transaction-safe （ACID compliant） storage engine for MySQL that has commit, rollback, and crash-recovery capabilities to protect user data. InnoDB row-level locking （without escalation to coarser granularity locks） and Oracle-style consistent nonlocking reads increase multi-user concurrency and performance. InnoDB stores user data in clustered indexes to reduce I/O for common queries based on primary keys. To maintain data integrity, InnoDB also supports FOREIGN KEY referential-integrity constraints.</p>
+</blockquote>
+<p>mysql 5.7中的默认存储引擎。InnoDB是一个事务安全（与ACID兼容）的MySQL 存储引擎，它具有提交、回滚和崩溃恢复功能来保护用户数据。InnoDB行级锁（不升级 为更粗粒度的锁）和Oracle风格的一致非锁读提高了多用户并发性和性能。InnoDB将 用户数据存储在聚集索引中，以减少基于主键的常见查询的I/O。为了保持数据完整性， InnoDB还支持外键引用完整性约束。</p>
+<p>特点：</p>
+<p>支持事务，支持外键，因此数据的完整性、一致性更高。</p>
+<p>支持行级别的锁和表级别的锁。</p>
+<p>支持读写并发，写不阻塞读（MVCC）。</p>
+<p>特殊的索引存放方式，可以减少I。，提升査询效率。</p>
+<p>适合：经常更新的表，存在并发读写或者有事务处理的业务系统。</p>
+<p>InnoDB本来是InnobaseOy公司开发的，它和MySQL AB公司合作开源了 InnoDB</p>
+<p>的代码。但是没想到MySQL的竞争对手Oracle把InnobaseOy收购了。</p>
+<p>后来08年Sun公司（开发Java语言的Sun）收购了 MySQL AB, 09年Sun公司</p>
+<p>又被Oracle收购了，所以MySQL, InnoDB又是一家了。有人觉得MySQL越来越像</p>
+<p>Oracle,其实也是这个原因。</p>
+<h4 id="Memory-（1个文件）"><a href="#Memory-（1个文件）" class="headerlink" title="Memory （1个文件）"></a>Memory （1个文件）</h4><p>Stores all data in RAM, for fast access in environments that require quick lookups of non-critical data. This engine was formerly known as the HEAP engine. Its use cases are decreasing; InnoDB with its buffer pool memory area provides a general-purpose and durable way to keep most or all data in memory, and NDBCLUSTER provides fast key-value lookups for huge distributed data sets.</p>
+<p>将所有数据存储在RAM中，以便在需要快速查找非关键数据的环境中快速访问。这 个引擎以前被称为堆引擎。其使用案例正在减少；InnoDB及其缓冲池内存区域提供了一 种通用、持久的方法来将大部分或所有数据保存在内存中，而ndbduster为大型分布式 数据集提供了快速的键值查找。</p>
+<p>特点：</p>
+<p>把数据放在内存里面，读写的速度很快，但是数据库重启或者崩溃，数据会全部消 失。只适合做临时表。</p>
+<p>将表中的数据存储到内存中。</p>
+<h4 id="CSV-（3个文件）"><a href="#CSV-（3个文件）" class="headerlink" title="CSV （3个文件）"></a>CSV （3个文件）</h4><blockquote>
+<p>Its tables are really text files with comma-separated values. CSV tables let you import or dump data in CSV format, to exchange data with scripts and applications that read and write that same format. Because CSV tables are not indexed, you typically keep the data in InnoDB tables during normal operation, and only use CSV tables during the import or export stage.</p>
+</blockquote>
+<p>它的表实际上是带有逗号分隔值的文本文件。csv表允许以CSV格式导入或转储数据, 以便与读写相同格式的脚本和应用程序交换数据。因为CSV表没有索引，所以通常在正 常操作期间将数据保存在innodb表中，并且只在导入或导出阶段使用csv表。</p>
+<p>特点：不允许空行，不支持索引。格式通用，可以直接编辑，适合在不同数据库之 间导入导出。</p>
+<p>Archive （2 个文件）</p>
+<blockquote>
+<p>These compact, unindexed tables are intended for storing and retrieving large amounts of seldom-referenced historical, archived, or security audit information.</p>
+</blockquote>
+<p>这些紧凑的未索引的表用于存储和检索大量很少引用的历史、存档或安全审计信息。 特点：不支持索引，不支持update deleteo</p>
+<p>这是MySQL里面常见的一些存储引擎，我们看到了，不同的存储引擎提供的特性都 不一样，它们有不同的存储机制、索引方式、锁定水平等功能。</p>
+<p>我们在不同的业务场景中对数据操作的要求不同，就可以选择不同的存储引擎来满 足我们的需求，这个就是MySQL支持这么多存储引擎的原因。</p>
+<h3 id="如何选择存储引擎"><a href="#如何选择存储引擎" class="headerlink" title="如何选择存储引擎"></a>如何选择存储引擎</h3><p>如果对数据一致性要求比较高，需要事务支持，可以选择InnoDB。</p>
+<p>如果数据查询多更新少，对查询性能要求比较高，可以选择My ISAM。</p>
+<p>如果需要一个用于查询的临时表，可以选择Memory。</p>
+<p>如果所有的存储引擎都不能满足你的需求，并且技术能力足够，可以根据官网内部 手册用C语言开发一个存储引擎：</p>
+<p><a href="https://dev.mvsql.com/doc/internals/en/custom-engine.html">https://dev.mvsql.com/doc/internals/en/custom-engine.html</a></p>
+<p>按照这个开发规范，实现相应的接口，给执行器操作。</p>
+<p>也就是说，为什么能支持这么多存储引擎，还能自定义存储引擎，表的存储引擎改 了对Server访问没有任何影响，就是因为大家都遵循了一定了规范，提供了相同的操作 接口。</p>
+<p>每个存储引擎都有自己的服务。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show engine innodb status;</span><br></pre></td></tr></table></figure>
+
+<p>这些存储引擎用不同的方式管理数据文件，提供不同的特性，但是为上层提供相同 的接口。</p>
+<h3 id="执行引擎-Query-Execution-Engine-返回结果"><a href="#执行引擎-Query-Execution-Engine-返回结果" class="headerlink" title="执行引擎(Query Execution Engine),返回结果"></a>执行引擎(Query Execution Engine),返回结果</h3><p>OK,存储引擎分析完了，它是我们存储数据的形式，纟使续第二个问题，是谁使用执 行计划去操作存储引擎呢？</p>
+<p>这就是我们的执行引擎，它利用存储引擎提供的相应的API来完成操作。</p>
+<p>为什么我们修改了表的存储引擎，操作方式不需要做任何改变？因为不同功能的存 储引擎实现的API是相同的。</p>
+<p>最后把数据返回给客户端。</p>
+<h2 id="MySQL体系结构总结"><a href="#MySQL体系结构总结" class="headerlink" title="MySQL体系结构总结"></a>MySQL体系结构总结</h2><h3 id="架构分层"><a href="#架构分层" class="headerlink" title="架构分层"></a>架构分层</h3><p>总体上，我们可以把MySQL分成三层，跟客户端对接的连接层，真正执行操作的服务层<strong>，</strong>和跟硬件打交道的存储引擎层。</p>
+<h4 id="连接层"><a href="#连接层" class="headerlink" title="连接层"></a>连接层</h4><p>我们的客户端要连接到MySQL服务器3306端口，必须要跟服务端建立连接，那么管理所有的连接，验证客户端的身份和权限，这些功能就在连接层完成。</p>
+<h4 id="服务层"><a href="#服务层" class="headerlink" title="服务层"></a>服务层</h4><p>连接层会把SQL语句交给服务层，这里面又包含一系列的流程：</p>
+<p>比如查询缓存的判断、根据SQL调用相应的接口，对我们的SQL语句进行词法和语 法的解析（比如关键字怎么识别，别名怎么识别，语法有没有错误等等）。然后就是优化器，MySQL底层会根据一定的规则对我们的SQL语句进行优化，最 后再交给执行器去执行。</p>
+<h4 id="存储引擎-1"><a href="#存储引擎-1" class="headerlink" title="存储引擎"></a>存储引擎</h4><p>存储引擎就是我们的数据真正存放的地方，在MySQL里面支持不同的存储弓I擎。再往下就是内存或者磁盘。</p>
+<h2 id="一条更新SQL是如何执行的"><a href="#一条更新SQL是如何执行的" class="headerlink" title="一条更新SQL是如何执行的"></a>一条更新SQL是如何执行的</h2><p>讲完了查询流程，我们是不是再讲讲更新流程、插入流程和删除流程？</p>
+<p>在数据库里面，我们说的update操作其实包括了更新、插入和删除。如果大家有看 过MyBatis的源码，应该知道Executor里面也只有doQuery()和doUpdate。的方法， 没有 doDelete()和 dolnsert()。</p>
+<p>更新流程和查询流程有什么不同呢？</p>
+<p>基本流程也是一致的，也就是说，它也要经过解析器、优化器的处理，最后交给执 行器。</p>
+<p>区另U就在于拿到符合条件的数据之后的操作。</p>
+<h3 id="缓冲池-Buffer-Pool"><a href="#缓冲池-Buffer-Pool" class="headerlink" title="缓冲池 Buffer Pool"></a>缓冲池 Buffer Pool</h3><p>首先，对于InnoDB存储引擎来说，数据都是放在磁盘上的，存储引擎要操作数据, 必须先把磁盘里面的数据加载到内存里面才可以操作。</p>
+<p>这里就有个问题，是不是我们需要的数据多大，我们就一次从磁盘加载多少数据到 内存呢？比如我要读6个字节。</p>
+<p>磁盘I/O的读写相对于内存的操作来说是很慢的。如果我们需要的数据分散在磁盘 的不同的地方，那就意味着会产生很多次的I/O操作。</p>
+<p>所以，无论是操作系统也好，还是存储引擎也好，都有一个预读取的概念。也就是 说，当磁盘上的一块数据被读取的时候，很有可能它附近的位置也会马上被读取到，这 个就叫做局部性原理。那么这样，我们干脆每次多读取一点，而不是用多少读多少。</p>
+<p>InnoDB设定了一个存储弓I擎从磁盘读取数据到内存的最小的单位，叫做页。操作系 统也有页的概念。操作系统的页大小一般是4K,而在InnoDB里面，这个最小的单位默 认是16KB大小。如果要修改这个值的大小，需要清空数据重新初始化服务。</p>
+<p><a href="https://dev.mysql.eom/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_page_size">https://dev.mysql.eom/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_page_size</a></p>
+<p>举个例子，你去烧烤店跟老板说，老板，来一个生蛙。他根本不卖，懒得给你烤。 老板给卖给你生蛙，就是一打一打地卖。</p>
+<p>我们要操作的数据就在这样的页里面，数据所在的页叫数据页。</p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210429234114560.png" alt="image-20210501010707747"></p>
+<p>这里有一个问题，操作数据的时候，每次都要从磁盘读取到内存（再返回给Server）,</p>
+<p>有没有什么办法可以提高效率?</p>
+<p>还是缓存的思想。把读取过的数据页缓存起来。</p>
+<p>InnoDB设计了一个内存的缓冲区。读取数据的时候，先判断是不是在这个内存区域 里面，如果是，就直接读取，然后操作，不用再次从磁盘加载。如果不是，读取后就写 到这个内存的缓冲区。</p>
+<p>这个内存区域有个专属的名字，叫Buffer PooL</p>
+<p>修改数据的时候，也是先写入到buffer pool,而不是直接写到磁盘。内存的数据页 和磁盘数据不一致的时候，我们把它叫做脏页。那脏页什么时候才同步到磁盘呢？</p>
+<p>InnoDB里面有专门的后台线程把Buffer Pool的数据写入到磁盘，每隔一段时间就</p>
+<p>一次性地把多个修改写入磁盘，这个动作就叫做刷脏。</p>
+<blockquote>
+<p>Buffer Pool的作用是为了提高读写的效率。</p>
+</blockquote>
+<h3 id="Redo-log"><a href="#Redo-log" class="headerlink" title="Redo log"></a>Redo log</h3><p>思考一个问题：因为刷脏不是实时的,如果Buffer Pool里面的脏页还没有刷入磁盘 时，数据库宕机或者重启，这些数据就会丢失。</p>
+<p>那怎么办呢？所以内存的数据必须要有一个持久化的措施。</p>
+<p>为了避免这个问题，InnoDB把所有对页面的修改操作专门写入一个日志文件。</p>
+<p>如果有未同步到磁盘的数据，数据库在启动的时候，会从这个日志文件进行恢复操 作（实现crash-safe） o我们说的事务的ACID里面D （持久性），就是用它来实现的。</p>
+<p>这个日志文件就是磁盘的redo log （叫做重做日志）。</p>
+<p>有没有同学有这样的问题：同样是写磁盘，为什么不直接写到dbfile里面去？为什 么先写日志再写磁盘？</p>
+<p>写日志文件和和写到数据文件有什么区别？</p>
+<p>我们先说一下磁盘寻址的过程。这个是磁盘的构造。磁盘的盘片不停地旋转，磁头<br>会在磁盘表面画出一个圆形轨迹，这个就叫磁道。从内到位半径不同有很多磁道。然后 又用半径线，把磁道分割成了扇区（两根射线之内的扇区组成扇面）。如果要读写数据, 必须找到数据对应的扇区，这个过程就叫寻址。</p>
+<p>如果我们所需要的数据是随机分散在磁盘上不同页的不同扇区中，那么找到相应的 数据需要等到磁臂旋转到指定的页，然后盘片寻找到对应的扇区，才能找到我们所需要 的一块数据，一次进行此过程直到找完所有数据，这个就是随机10,读取数据速度较慢。</p>
+<p>假设我们已经找到了第一块数据，并且其他所需的数据就在这一块数据后边，那么 就不需要重新寻址，可以依次拿到我们所需的数据，这个就叫顺序10。</p>
+<p>刷盘是随机I/O,而记录日志是顺序I/O （连续写的），顺序I/O效率更高，本质上 是数据集中存储和分散存储的区别。因此先把修改写入日志文件，在保证了内存数据的 安全性的情况下，可以延迟刷盘时机，进而提升系统吞吐。</p>
+<p>redo log 位于/var/lib/mysql/目录下的 ibJogfileO 和 ib logfilel z 默认 2 个文件，每个48M。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like finnodb_log%!;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>innodb l og fil e size</th>
+<th>指定每个文件的大小，默认48M</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>innodb l og files in group</td>
+<td>指定文件的数量，默认为2</td>
+</tr>
+<tr>
+<td>innodb_log_group_home_dir</td>
+<td>指定文件所在路径，相对或绝对。如果不指定，则为 datadir 路径:</td>
+</tr>
+</tbody></table>
+<h4 id="这个redo-log有什么特点"><a href="#这个redo-log有什么特点" class="headerlink" title="这个redo log有什么特点"></a>这个redo log有什么特点</h4><ul>
+<li><p> redo log是InnoDB存储弓|擎实现的，并不是所有存储引擎都有。支持崩溃恢复 是InnoDB的一个特性。</p>
+</li>
+<li><p>red。log不是记录数据页更新之后的状态，而是记录的是”在某个数据页上做了 什么修改”。属于物理日志。</p>
+</li>
+<li><p>redo log的大小是固定的，前面的内容会被覆盖,一旦写满，就会触发buffer pool 到磁盘的同步，以便腾出空间记录后面的修改。</p>
+</li>
+<li><p>除了 redo log之外,还有一个跟修改有关的日志，叫做undo logoredo log和undo log与事务密切相关，统称为事务日志。</p>
+</li>
+</ul>
+<h3 id="Undo-log"><a href="#Undo-log" class="headerlink" title="Undo log"></a>Undo log</h3><p>undo log（撤销日志或回滚日志）记录了事务发生之前的数据状态，分为insert undo log和update undo logo如果修改数据时出现异常，可以用undo log来实现回滚操作 （保持原子性）。</p>
+<p>可以理解为undo log记录的是反向的操作，比如insert会记录delete, update 会记录update原来的值，跟redolog记录在哪个物理页面做了什么操作不同，所以叫 做逻辑格式的日志。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show global variables like &#39;%undo%‘;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>innod b u n d o di recto ry</td>
+<td>undo文件的路径</td>
+</tr>
+<tr>
+<td>innodb undo log truncate</td>
+<td>设置为1，即开启在线回收（收缩;undo log 0志文件</td>
+</tr>
+<tr>
+<td>innodb_max_undo_log_size</td>
+<td>如果innodb_undo_log_truncate设置为1,超过这个大小的时候会触发 truncate回收（收缩）动作，如果page大小是16KB, truncate后空间 缩小到10Mo默认1073741824字节二1G。</td>
+</tr>
+<tr>
+<td>innodb undo logs</td>
+<td>回滚段的数量，默认128,这个参数已经过时。</td>
+</tr>
+<tr>
+<td>innodb_undo_tablespaces</td>
+<td>设置undo独立表空间个数，范围为0-95,默认为0,。表示表示不 开启独立undo表仝间 且undo日志存储在ibdata文件中。这个参数 已经过时，</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>redo Log和undo Log与事务密切相关，统称为事务日志。</p>
+</blockquote>
+<h3 id="更新过程"><a href="#更新过程" class="headerlink" title="更新过程"></a>更新过程</h3><p>有了这些日志之后，我们来总结一下一个更新操作的流程，这是一个简化的过程。 name 原值是 qingshano</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">update user set name &#x3D; &#39;penyuyan&#39; where id&#x3D;l;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>事务开始，从内存（buffer pool）或磁盘（data file）取到包含这条数据的数据页，返回给Server的执行器；</p>
+</li>
+<li><p>Server的执行器修改数据页的这一行数据的值为penyuyan;</p>
+</li>
+<li><p>记录 name=qingshan 至ij undo log;</p>
+</li>
+<li><p>记录 name=penyuyan 至I」redo log;</p>
+</li>
+<li><p>调用存储引擎接口，记录数据页到Buffer Pool （修改name二penyuyan）;</p>
+</li>
+<li><p>事务提交。</p>
+</li>
+</ul>
+<h2 id="InnoDB总体架构"><a href="#InnoDB总体架构" class="headerlink" title="InnoDB总体架构"></a>InnoDB总体架构</h2><img src="https://dev.mysql.com/doc/refman/8.0/en/images/innodb-architecture.png" style="zoom:80%;">
+
+<h3 id="内存结构"><a href="#内存结构" class="headerlink" title="内存结构"></a>内存结构</h3><p>Buffer Pool 主要分为3个部分：<code>Buffer Pool</code>、<code>Change Buffer</code>、<code>Adaptive Hash Index</code>, 另外还有一个 <code>(redo) log buffero</code></p>
+<h4 id="Buffer-Pool"><a href="#Buffer-Pool" class="headerlink" title="Buffer Pool"></a>Buffer Pool</h4><p>Buffer Pool缓存的是页面信息，包括数据页、索引页。</p>
+<p>Buffer Pool默认大小是128M （134217728字节）,可以调整。</p>
+<blockquote>
+<p>MySQL服务系统变量 <a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html">https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html</a></p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 査看系统变量</span><br><span class="line">SHOW VARIABLES like &#39;%innodb_buffer_pool%‘;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 查看服务器状态，里面有很多跟Buffer Pool相关的信息</span><br><span class="line">SHOW STATUS LIKE &#39;%innodb_buffer_pool%&#39;;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>Innodb_buffer_pool_dump_status</th>
+<th>Dumping of buffer pool not started</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Innodb_buffer_pool_load_status</td>
+<td>Buffer pool(s) load completed at 210501 1:32:07</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_resize_status</td>
+<td></td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_data</td>
+<td>988</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_bytes_data</td>
+<td>16187392</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_dirty</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_bytes_dirty</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_flushed</td>
+<td>153</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_free</td>
+<td>7200</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_misc</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_pages_total</td>
+<td>8192</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_read_ahead_rnd</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_read_ahead</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_read_ahead_evicted</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_read_requests</td>
+<td>14822</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_reads</td>
+<td>847</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_wait_free</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Innodb_buffer_pool_write_requests</td>
+<td>1650</td>
+</tr>
+</tbody></table>
+<p>内存的缓冲池写满了怎么办？ （Redis设置的内存满了怎么办？）InnoDB用LRU 算法来管理缓冲池（链表实现，不是传统的LRU,分成了 young和old）,经过淘汰的 数据就是热点数据。</p>
+<h4 id="LRU"><a href="#LRU" class="headerlink" title="LRU"></a>LRU</h4><p>传统LRU,可以用Map+链表实现。value存的是在链表中的地址。</p>
+<p><img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005830805.png" alt="image-20210501010707747"></p>
+<p>首先，InnoDB中确实使用了一个双向链表，LRU list，但是这个LRU list放的不是data page，而是指向缓存页的指针，如果写buffer pool的时候没有空闲页了，就要从buffer pool 中淘汰数据页了，它要根据LRU链表的数据来操作。</p>
+<p>这样是不是很和谐？</p>
+<p>首先，InnoDB的数据页并不是都是在访问的时候才缓存到buffer pool的。</p>
+<p>InnoDB有一个预读机制（read ahead）。也就是说，设计者认为访问某个page 的数据的时候，相邻的一些page可能会很快被访问到，所以先把这些page放到buffer pool中缓存起来。首先，InnoDB的数据页并不是都是在访问的时候才缓存到buffer pool的。</p>
+<p><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-performance-read_ahead.html">https://dev.mysql.com/doc/refman/8.0/en/innodb-performance-read_ahead.html</a></p>
+<p>这种预读的机制又分为两种类型，一种叫线性预读（异步的）（Linear read-ahead）。为了便于管理，InnoDB中把64个相邻的page叫做一个extent （区）。如果顺序地访 问了一个extent的56个page,这个时候InnoDB就会把下一个extent （区）缓存到buffer pool 中。顺序访问多少个page才缓存下一个extent,由一个参数控制:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;Innodb_read_ahead_threshold&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>第二种叫做随机预读（Random read-ahead）,如果buffer pool已经缓存了同一个extent （区）的数据页的个数超过13时，就会把这个extent剩余的所有page全部缓存到buffer pool。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;innodb_random_read_ahead,</span><br></pre></td></tr></table></figure>
+
+<p>很明显，线性预读或者异步预读，能够把可能即将用到的数据提前加载到buffer pool,肯定能提升I/O的性能，所以是一种非常有用的机制。但是预读肯定也会带来一些副作用，就是导致占用的内存空间更多，剩余的空 闲页更少。如果说buffer pool size不是很大，而预读的数据很多，很有可能那些 真正的需要被缓存的热点数据被预读的数据挤出buffer pool,淘汰掉了。下次访 问的时候又要先去磁盘。</p>
+<p>所以问题就来了<strong>，</strong>怎么让这些真正的热点数据不受到预读的数据的影响呢？</p>
+<p>我想了一个办法,干脆把LRU list分成两部分，靠近head的叫做new sublist, 用来放热数据（我们把它叫做热区）。靠近tail的叫做。oId sublist,用来放冷数据 俄们把它叫做冷区）。中间的分割线叫做midpoint，也就是对buffer pool做 一个冷热分离。</p>
+<img src="https://dev.mysql.com/doc/refman/8.0/en/images/innodb-buffer-pool-list.png" alt="innodb-buffer-pool-list" style="zoom: 67%;">
+
+<p>所有新数据加入到buffer pool的时候，一律先放到冷数据区的head,不管是 预读的，还是普通的读操作。所以如果有一些预读的数据没有被用到，会在old sublist （冷区）直接被淘汰。放到LRU List以后，如果再次被访问，都把它移动到热区的head。如果热区的数据长时间没有被访问，会被先移动到冷区的head部，最后慢慢 在tail被淘汰。</p>
+<p>在默认情况下，热区占了 5/8的大小，冷区占了 3/8,这个值由innodb_old_blocks_pct控制，它代表的是old区的大小,默认是37%也就是3/8。innodb_old_blocks_pct的值可以调整，在5%到95%之间，这个值越大，new区越小，这个LRU算法就接近传统LRU。如果这个值太小，old区没有被访问的速度淘汰会更快。</p>
+<h5 id="OK-预读的问题，通过冷热分离解决了，还有没有其他的问题呢？"><a href="#OK-预读的问题，通过冷热分离解决了，还有没有其他的问题呢？" class="headerlink" title="OK,预读的问题，通过冷热分离解决了，还有没有其他的问题呢？"></a>OK,预读的问题，通过冷热分离解决了，还有没有其他的问题呢？</h5><p>我们先把数据放到冷区，用来避免占用热数据的存储空间。但是如果刚加载到 冷区的数据立即被访问了一次，按照原来的逻辑，这个时候我们会马上把它移动至U 热区。假设这一次加载然后被立即访问的冷区数据量非常大，比如我们查询了一张几 千万数据的大表，没有使用索引，做了一个全表扫描。或者，dump全表备份数据,这种查询属于短时间内访问，后面再也不会用到了。如果短时间之内被访问了一次，导致它们全部被移动到热区的head,它会导致很多热点数据被移动到冷区甚至被淘汰，造成了缓冲池的污染。</p>
+<h5 id="这个问题我们又怎么解决呢？"><a href="#这个问题我们又怎么解决呢？" class="headerlink" title="这个问题我们又怎么解决呢？"></a>这个问题我们又怎么解决呢？</h5><p>那我们得想一个办法，对于加载到冷区然后被访问的数据，设置一个时间窗口, 只有超过这个时间之后被访问，我们才认为它是有效的访问。</p>
+<p>也就是说1秒钟之内被访问的，不算数，待在冷区不动。只有1秒钟以后被访问的, 才从冷区移动到热区的head。</p>
+<p>这样就可以从很大程度上避免全表扫描或者预读的数据污染真正的热数据。</p>
+<p>似乎比较完美了。</p>
+<p>这样的算法，还有没有可以优化的空间呢？</p>
+<p>为了避免并发的问题，对于LRU链表的操作是要加锁的。也就是说每一次链表 的移动，都会带来资源的竞争和等待。从这个角度来说，如果要进一步提升InnoDB LRU的效率，就要尽量地减少LRU链表的移动。</p>
+<p>比如，把热区一个非常靠近head的page移动到head,有没有这个必要呢？ 所以InnoDB对于new区还有一个特殊的优化：</p>
+<p>如果一个缓存页处于热数据区域，且在热数据区域的前1/4区域（注意是热 数据区域的1/4,不是整个链表的1/4）,那么当访问这个缓存页的时候，就不用 把它移动到热数据区域的头部；如果缓存页处于热区的后3/4区域，那么当访问 这个缓存页的时候，会把它移动到热区的头部。</p>
+<p>内存缓冲区对于提升读写性能有很大的作用。思考一个问题：</p>
+<p>当需要更新一个数据页时,如果数据页在Buffer Pool中存在，那么就直接更新好了。 否则的话就需要从磁盘加载到内存，再对内存的数据页进行操作。也就是说，如果 没有命中缓冲池，至少要产生一次磁盘IO。</p>
+<h4 id="Change-Buffer缓冲"><a href="#Change-Buffer缓冲" class="headerlink" title="Change Buffer缓冲"></a>Change Buffer缓冲</h4><p>Change Buffer 是 Buffer Pool 的一部分。</p>
+<p>如果这个数据页不是唯一索引，不存在数据重复的情况，也就不需要从磁盘加载索 引页判断数据是不是重复（唯一性检查）。这种情况下可以先把修改记录在内存的缓冲 池中，从而提升更新语句（Insert. Delete. Update）的执行速度。</p>
+<p>这一块区域就是Change Buffero 5.5之前叫Insert Buffer插入缓冲，现在也能支 持 delete 和 update。</p>
+<p>最后把Change Buffer记录到数据页的操作叫做merge。什么时候发生merge? 有几种情况：在访问这个数据页的时候，或者通过后台线程、或者数据库shut down、 redo log写满时触发。</p>
+<p>如果数据库大部分索引都是非唯一索引，并且业务是写多读少，不会在写数据后立 刻读取，就可以使用Change Buffer （写缓冲）。</p>
+<p>可以通过调大这个值，来扩大Change的大小，以支持写多读少的业务场景。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SHOW VARIABLES LIKE &#39;innodb_change_buffer_max_size&#39;;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>代表 Change Buffer 占 Buffer Pool 的比例，默认 25%。</p>
+</blockquote>
+<h4 id="Adaptive-Hash-Index"><a href="#Adaptive-Hash-Index" class="headerlink" title="Adaptive Hash Index"></a>Adaptive Hash Index</h4><h4 id="Redo-Log-Buffer"><a href="#Redo-Log-Buffer" class="headerlink" title="Redo Log Buffer"></a>Redo Log Buffer</h4><p>Redo log也不是每一次都直接写入磁盘，在Buffer Pool里面有一块内存区域(Log Buffer)专门用来保存即)镀写入日志文件的数据，默认16M,它一样可以节省磁盘IO。</p>
+<img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005830806.png" alt="image-20210501010707747" style="zoom:67%;">
+
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SHOW VARIABLES LIKE &#39;innodb_log_buffer_size‘;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>需要注意：redo log的内容主要是用于崩溃恢复。磁盘的数据文件，数据来自buffer pooL redo log写入磁盘，不是写入数据文件。</p>
+</blockquote>
+<h4 id="Log-Buffer什么时候写入log-file"><a href="#Log-Buffer什么时候写入log-file" class="headerlink" title="Log Buffer什么时候写入log file?"></a>Log Buffer什么时候写入log file?</h4><p>在我们写入数据到磁盘的时候，操作系统本身是有缓存的。flush就是把操作系统缓 冲区写入到磁盘。log buffer写入磁盘的时机，由一个参数控制，默认是1。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SHOW VARIABLES LIKE &#39;innodb_flush_log_at_trx_commit&#39;;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>0 （延退写）</th>
+<th>log buffer将每秒一次地写入log file中,并且log file的flush操作同时进行。 该模式下，在事务提交的时候，不会主动触发写入磁盘的操作。</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1 （默认，实时 写，实时刷）</td>
+<td>每次事务提交时MySQL都会把log buffer的数据写入log file,并且刷到磁盘 中去。</td>
+</tr>
+<tr>
+<td>2 （实时写，延 退刷）</td>
+<td>每次事务提交时MySQL都会把log buffer的数据写入log file。但是flush操 作并不会同时进行。该模式下，MySQL会每秒执行一次也sh操作。</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>刷盘越快，越安全，但是也会越消耗性能。</p>
+<p>MySQL的内存结构，分为:Buffer pool、change buffer、Adaptive Hash Index、 log buffer。</p>
+</blockquote>
+<h3 id="磁盘结构"><a href="#磁盘结构" class="headerlink" title="磁盘结构"></a>磁盘结构</h3><p>表空间可以看做是InnoDB存储引擎逻辑结构的最高层，所有的数据都存放在表空 间中。InnoDB的表空间分为5大类。</p>
+<h4 id="系统表空间-（system-tablespace）"><a href="#系统表空间-（system-tablespace）" class="headerlink" title="系统表空间 （system tablespace）"></a>系统表空间 （system tablespace）</h4><p>在默认情况下InnoDB存储引擎有一个共享表空间（对应文件/var/lib/mysql/ ibdata1，也叫系统表空间。</p>
+<p>InnoDB系统表空间包含InnoDB数据字典和双写缓冲区， Change Buffer和Undo Logs,如果没有指定file-per-table,也包含用户创建的表和索引数据。</p>
+<ul>
+<li><p>undo在后面介绍，因为也可以设置独立的表空间</p>
+</li>
+<li><p>数据字典：由内部系统表组成，存储表和索弓I的元数据（定义信息）。</p>
+</li>
+<li><p>双写缓冲（InnoDB的一大特性）：InnoDB的页和操作系统的页大小不一致，InnoDB页大小一般为16K，操作系统页 大小为4K，InnoDB的页写入到磁盘时，一个页需要分4次写。</p>
+<p><del>图略</del></p>
+</li>
+</ul>
+<p>如果存储引擎正在写入页的数据到磁盘时发生了宕机，可能出现页只写了一部分的 情况，比如只写了 4K，就宕机了，这种情况叫做部分写失效(partial page write)，可 能会导致数据丢失。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;Innodb_doublewrite&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>我们不是有redo log吗？但是有个问题，如果这个页本身已经损坏了，用它来做崩 溃恢复是没有意义的。所以在对于应用red。log之前，需要一个页的副本。如果出现了 写入失效,就用页的副本来还原这个页，然后再应用redo log。这个页的副本就是double write, InnoDB的双写技术。通过它实现了数据页的可靠性。</p>
+<p>跟redo log —样,double write由两部分组成，一部分是内存的double write, —个部分是磁盘上的double write0因为double write是顺序写入的，不会带来很大的 开销。</p>
+<p>在默认情况下，所有的表共享一个系统表空间，这个文件会越来越大，而且它的空 间不会收缩。</p>
+<h4 id="独占表空间（-file-per-tabletablespaces）"><a href="#独占表空间（-file-per-tabletablespaces）" class="headerlink" title="独占表空间（ file-per-tabletablespaces）"></a>独占表空间（ file-per-tabletablespaces）</h4><p>我们可以让每张表独占一个表空间。这个开关通过innodb_file_per_table设置，默 认开启。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SHOW VARIABLES LIKE &#39;innodb_file_per_table&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>开启后，则每张表会开辟一个表空间，这个文件就是数据目录下的ibd文件(例如<code>/var/lib/mysql/test/user_innodb.ibd</code>，存放表的索引和数据。但是其他类的数据，如回滚(undo)信息，插入缓冲索引页、系统事务信息，二次写缓冲(Double write buffer)等还是存放在原来的共享表空间内。</p>
+<h4 id="通用表空间-（general-tablespaces）"><a href="#通用表空间-（general-tablespaces）" class="headerlink" title="通用表空间 （general tablespaces）"></a>通用表空间 （general tablespaces）</h4><p>通用表空间也是一种共享的表空间，跟ibdatal类似。可以创建一个通用的表空间，用来存储不同数据库的表，数据路径和文件可以自定 义。语法：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">create tablespace ts2673 add datafile &#39;var&#x2F;lib&#x2F;mysql&#x2F;ts2673.ibd&#39; file_block_size&#x3D; 16K engine&#x3D;innodb;</span><br></pre></td></tr></table></figure>
+
+<p>在创建表的时候可以指定表空间，用ALTER修改表空间可以转移表空间。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">create table t2673(id integer) tablespace ts2673;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>不同表空间的数据是可以移动的。</p>
+</blockquote>
+<p>删除表空间需要先删除里面的所有表</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">drop table t2673;</span><br><span class="line">drop tablespace ts2673;</span><br></pre></td></tr></table></figure>
+
+<h4 id="临时表空间（-temporary-tablespaces）"><a href="#临时表空间（-temporary-tablespaces）" class="headerlink" title="临时表空间（ temporary tablespaces）"></a>临时表空间（ temporary tablespaces）</h4><p>存储临时表的数据，包括用户创建的临时表，和磁盘的内部临时表。对应数据目录 下的ibtmpl文件。当数据服务器正常关闭时，该表空间被删除，下次重新产生。</p>
+<h4 id="undo-log表空间（-undo-log-tablespace）"><a href="#undo-log表空间（-undo-log-tablespace）" class="headerlink" title="undo log表空间（ undo log tablespace）"></a>undo log表空间（ undo log tablespace）</h4><p>undo Log的数据默认在系统表空间ibdatal文件中，因为共享表空间不会自动收缩，也可以单独创建一个undo表空间。</p>
+<h3 id="后台线程"><a href="#后台线程" class="headerlink" title="后台线程"></a>后台线程</h3><p>后台线程的主要作用是负责刷新内存池中的数据和把修改的数据页刷新到磁盘。后台线程分为：master thread，IO thread，purge thread，page cleaner thread。</p>
+<ul>
+<li><p>master thread负责刷新缓存数据到磁盘并协调调度其它后台进程。</p>
+</li>
+<li><p>IO thread 分为 insert buffer、log、read、write 进程。分别用来处理 insert buffer. 重做日志、读写请求的io回调。</p>
+</li>
+<li><p>purge thread 用来回收 undo 页。</p>
+</li>
+<li><p>page cleaner thread用来刷新脏页。</p>
+</li>
+<li><p>除了 InnoDB架构中的日志文件，MySQL的Server层也有一个日志文件，叫做 binlog,它可以被所有的存储引擎使用。</p>
+</li>
+</ul>
+<h2 id="binlog"><a href="#binlog" class="headerlink" title="binlog"></a>binlog</h2><p>binlog以事件的形式记录了所有的DDL和DML语句（因为它记录的是操作而不是数据值，属于逻辑日志)，可以用来做主从复制和数据恢复。跟redo log不一样，它的文件内容是可以追加的，没有固定大小限制。在开启了 binlog功能的情况下，我们可以把binlog导出成SQL语句，把所有的操作重放一遍，来实现数据的恢复。binlog的另一个功能就是用来实现主从复制，它的原理就是从服务器读取主服务器的binlog,然后执行一遍。</p>
+<blockquote>
+<p>配置方式和主从复制的实现原理</p>
+</blockquote>
+<p>有了这两个日志之后，我们来看一下一条更新语句是怎么执行的（redo不能一次写入了）</p>
+<img src="/2021/04/30/Mysql%E6%9E%B6%E6%9E%84%E4%B8%8ESQL%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B/image-20210430005830807.png" alt="image-20210501010707747" style="zoom:67%;">
+
+<p>例如一条<code>sql</code>语句</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">update teacher set name&#x3D;&#39;test&#39; where id&#x3D;1;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>先查询到这条数据，如果有缓存，也会用到缓存。</p>
+</li>
+<li><p>把name改成盆鱼宴，然后调用引擎的API接口，写入这一行数据到内存， 同时记录redo logo这时redo log进入prepare状态，然后告诉执行器，执行完成了，可以随时提交。</p>
+</li>
+<li><p>执行器收到通知后记录binlog,然后调用存储引擎接口，设置red。log为 commit 状态。</p>
+</li>
+<li><p>更新完成。</p>
+</li>
+</ul>
+<p>这张图片的重点：</p>
+<ul>
+<li><p>先记录到内存，再写日志文件。</p>
+</li>
+<li><p>记录redo log分为两个阶段。</p>
+</li>
+<li><p>存储引擎和Server记录不同的日志。</p>
+</li>
+<li><p>先记录redo，记录binlog。</p>
+</li>
+</ul>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q &amp; A"></a>Q &amp; A</h2><h3 id="Q1：问题：为什么连接数是查看线程？客户端的连接和服务端的线程有什么关系"><a href="#Q1：问题：为什么连接数是查看线程？客户端的连接和服务端的线程有什么关系" class="headerlink" title="Q1：问题：为什么连接数是查看线程？客户端的连接和服务端的线程有什么关系?"></a>Q1：问题：为什么连接数是查看线程？客户端的连接和服务端的线程有什么关系?</h3><p>客户端每产生一个连接或者一个会话，在服务端就会创建一个线程来处理。反过来， 如果要杀死会话，就是Kill线程。</p>
+<p>既然是分配线程的话，保持连接肯定会消耗服务端的资源。MySQL会把那些长时间 不活动的（SLEEP）连接自动断开。</p>
+<p>有两个参数:</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show global variables like &#39;wait timeout&#39;;—非交互式超时时间，如 JDBC 程序</span><br><span class="line"></span><br><span class="line">show global variables like &#39;interactive timeout&#39;;&quot;交互式超时时间，如数据库工具</span><br></pre></td></tr></table></figure>
+
+<p>默认都是28800秒，8小时。</p>
+<p>既然连接消耗资源，MySQL服务允许的最大连接数（也就是并发数）默认是多少呢？</p>
+<p>在5.7版本中默认是151个，最大可以设置成100000</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show variables like &#39;max_connections&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>参数级别说明：</p>
+<p>MySQL中的参数（变量）分为session和global级别，分别是在当前会话中生效和 全局生效,但是并不是每个参数都有两个级别，比如max_connections就只有全局级别。</p>
+<p>当没有带参数的时候，默认是session级别，包括查询和修改。</p>
+<p>比如修改了一个参数以后，在本窗口査询已经生效，但是其他窗口不生效：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">show VARIABLES like &#39;autocommit&#39;;</span><br><span class="line">set autocommit &#x3D; on;</span><br></pre></td></tr></table></figure>
+
+<p>所以，如果只是临时修改，建议修改session级别。 如果需要在其他会话中生效，必须显式地加上global参数。</p>
+<h3 id="Q2：为什么需要两阶段提交？"><a href="#Q2：为什么需要两阶段提交？" class="headerlink" title="Q2：为什么需要两阶段提交？"></a>Q2：为什么需要两阶段提交？</h3><p>举例：</p>
+<p>如果我们执行的是把name改成<code>test</code>，如果写完redo log,还没有写binlog的 时候，MySQL重启了。</p>
+<p>因为red。log可以在重启的时候用于恢复数据，所以写入磁盘的是盆鱼宴。但是 binlog里面没有记录这个逻辑日志，所以这时候用binlog去恢复数据或者同步到从库, 就会出现数据不一致的情况。</p>
+<p>所以在写两个日志的情况下，binlog就充当了一个事务的协调者。通知InnoDB来 执行 prepare 或者 commit 或者 rollback。</p>
+<p>如果第⑥步写入binlog失败，就不会提交。</p>
+<p>简单地来说，这里有两个写日志的操作，类似于分布式事务，不用两阶段提交，就</p>
+<p>不能保证都成功或者都失败。</p>
+<p>在崩溃恢复时，判断事务是否需要提交：</p>
+<ul>
+<li><p>binlog无记录，redo log无记录，在redolog写之前crash，恢复操作，回滚事务。</p>
+</li>
+<li><p>binlog无记录，redo log状态prepare，在binlog写完之前的crash，恢复操作，回滚事务。</p>
+</li>
+<li><p>binlog有记录，redol og状态prepare，在binlog写完提交事务之前的crash，恢复操作，提交事务。</p>
+</li>
+<li><p>binlog有记录，redolog状态commit，正常完成的事务，不需要恢复。</p>
+</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Mysql</category>
+      </categories>
+      <tags>
+        <tag>Mysql</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>windows 命令行下用netsh 实现端口转发(端口映射)</title>
+    <url>/2021/04/30/windows%20%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%8B%E7%94%A8netsh%20%E5%AE%9E%E7%8E%B0%E7%AB%AF%E5%8F%A3%E8%BD%AC%E5%8F%91(%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84)/</url>
+    <content><![CDATA[<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><blockquote>
+<p>微软Windows的netsh是一个命令行脚本实用工具。使用netsh工具 ，可以查看或更改本地计算机或远程计算机的网络配置。不仅可以在本地计算机上运行这些命令，而且可以在网络上的远程计算机上运行。可以手动运行Netsh命令，或创建批处理文件或脚本实现过程的自动化。netsh提供了脚本功能，让您在批处理模式下针对指定的计算机，运行一组命令。利用netsh ，可以将配置脚本保存为文本文件，便于存档或用于配置其他的计算机。</p>
+</blockquote>
+<span id="more"></span>
+
+<h2 id="配置方法"><a href="#配置方法" class="headerlink" title="配置方法"></a>配置方法</h2><ul>
+<li>假定需要通过127.0.0.1的8003端口转发到192.168.0.20的8003端口,则需要在本机的命令行上输入以下命令(添加转发):</li>
+</ul>
+  <figure class="highlight cmd"><table><tr><td class="code"><pre><span class="line">netsh interface portproxy add v4tov4 listenport=<span class="number">8003</span> listenaddress=<span class="number">127</span>.<span class="number">0</span>.<span class="number">0</span>.<span class="number">1</span> connectport=<span class="number">8003</span> connectaddress=<span class="number">192</span>.<span class="number">168</span>.<span class="number">0</span>.<span class="number">20</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>删除指定转发</li>
+</ul>
+  <figure class="highlight cmd"><table><tr><td class="code"><pre><span class="line">netsh interface portproxy delete v4tov4 listenport=<span class="number">8003</span> listenaddress=<span class="number">127</span>.<span class="number">0</span>.<span class="number">0</span>.<span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>查看存在的转发</li>
+</ul>
+  <figure class="highlight cmd"><table><tr><td class="code"><pre><span class="line">netsh interface portproxy show all</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>查看端口(8003)是否处于被侦听状态</p>
+<p><strong><code>findstr</code> 后有一个空格</strong></p>
+</li>
+</ul>
+  <figure class="highlight cmd"><table><tr><td class="code"><pre><span class="line">netstat -ano | <span class="built_in">findstr</span> :<span class="number">8003</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>禁用系统防火墙</li>
+</ul>
+  <figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line">netsh<span class="built_in"> firewall </span><span class="builtin-name">set</span> opmode disable</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>启用系统防火墙</li>
+</ul>
+  <figure class="highlight cmd"><table><tr><td class="code"><pre><span class="line">netsh firewall <span class="built_in">set</span> opmode enable</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><a href="https://support.microsoft.com/zh-cn/help/947709/how-to-use-the-netsh-advfirewall-firewall-context-instead-of-the-netsh">微软官方 netsh 文档</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>window</category>
+        <category>netsh</category>
+      </categories>
+      <tags>
+        <tag>netsh</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java Security &amp; Spring Security</title>
+    <url>/2021/04/29/Security/</url>
+    <content><![CDATA[<span id="more"></span>
+
+<h1 id="Java-Security"><a href="#Java-Security" class="headerlink" title="Java Security"></a>Java Security</h1><p><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-specTOC.fm.html">Java Security Architecture</a></p>
+<h2 id="JDK-内建权限-API"><a href="#JDK-内建权限-API" class="headerlink" title="JDK 内建权限 API"></a>JDK 内建权限 API</h2><ul>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19902">java.security.Permission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19905">java.security.PermissionCollection</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19911">java.security.Permissions</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a22515">java.security.UnresolvedPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19913">java.io.FilePermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19915">java.net.SocketPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20057">java.security.BasicPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20107">java.util.PropertyPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20113">java.lang.RuntimePermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20327">java.awt.AWTPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20353">java.net.NetPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26158">java.lang.reflect.ReflectPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26159">java.io.SerializablePermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26196">java.security.SecurityPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26221">java.security.AllPermission</a></strong></li>
+<li><strong><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#AuthPermission">javax.security.auth.AuthPermission</a></strong></li>
+</ul>
+<h2 id="JDK-安全策略配置文件"><a href="#JDK-安全策略配置文件" class="headerlink" title="JDK 安全策略配置文件"></a>JDK 安全策略配置文件</h2><ul>
+<li>文件路径：$JAVA_HOME/jre/lib/security/java.policy</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">grant codeBase <span class="string">&quot;file:<span class="variable">$&#123;&#123;java.ext.dirs&#125;</span>&#125;/*&quot;</span> &#123; permission java.security.AllPermission; &#125;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>格式：permission ${java.security.Permission 实现类} “${<a href="http://permisson.name/">permisson.name</a>}”;</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">grant &#123; </span><br><span class="line">		permission java.lang.RuntimePermission <span class="string">&quot;stopThread&quot;</span>;</span><br><span class="line">		java.net.SocketPermission <span class="string">&quot;localhost:0&quot;</span>, <span class="string">&quot;listen&quot;</span>;</span><br><span class="line">		permission java.util.PropertyPermission <span class="string">&quot;java.version&quot;</span>, <span class="string">&quot;read&quot;</span>; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>java.ext.dirs 系统属性表示JVM 扩展的 ClassLoader 路径</p>
+<ul>
+<li>Bootstrap ClassLoader<ul>
+<li>System ClassLoader<ul>
+<li>App ClassLoader<ul>
+<li>Ext ClassLoader（ JDK 9 开始淘汰）</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<h2 id="激活安全管理器-SecurityManager"><a href="#激活安全管理器-SecurityManager" class="headerlink" title="激活安全管理器 - SecurityManager"></a>激活安全管理器 - SecurityManager</h2><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">System.setSecurityManager(<span class="keyword">new</span> SecurityManager());</span><br></pre></td></tr></table></figure>
+
+<h2 id="自定义权限的-API"><a href="#自定义权限的-API" class="headerlink" title="自定义权限的 API"></a>自定义权限的 API</h2><ul>
+<li>Java 安全校验方法<ul>
+<li><code>SecurityManager#checkPermission(java.security.Permission);</code></li>
+<li><code>java.security.AccessController#checkPermission(java.security.Permission)</code></li>
+</ul>
+</li>
+<li>Java 鉴权方法<ul>
+<li><code>java.security.AccessController#doPrivileged(java.security.PrivilegedAction)</code> 以及重载</li>
+</ul>
+</li>
+</ul>
+<h2 id="第三方拓展"><a href="#第三方拓展" class="headerlink" title="第三方拓展"></a>第三方拓展</h2><p><a href="http://tomcat.apache.org/tomcat-7.0-doc/security-manager-howto.html">Security Manager HOW-TO</a></p>
+<h3 id="Tomcat-自定义-Policy-文件"><a href="#Tomcat-自定义-Policy-文件" class="headerlink" title="Tomcat 自定义 Policy 文件"></a>Tomcat 自定义 Policy 文件</h3><ul>
+<li>位置：$CATALINA_HOME/conf/catalina.policy 中</li>
+</ul>
+<h1 id="Spring-Security"><a href="#Spring-Security" class="headerlink" title="Spring Security"></a>Spring Security</h1><p><a href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/#servlet-architecture">Spring Security Reference</a></p>
+<h3 id="设计模式"><a href="#设计模式" class="headerlink" title="设计模式"></a>设计模式</h3><p>基于拦截模式实现，比如利用 AOP，Servlet Filter</p>
+<h2 id="Servlet-Filter"><a href="#Servlet-Filter" class="headerlink" title="Servlet Filter"></a>Servlet Filter</h2><p><img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/filterchain.png" alt="filterchain"></p>
+<p>Servlet filter 调用链路根据 Filter 的顺序依次调用。传入参数为</p>
+<ul>
+<li>HttpServletRequest</li>
+<li>HttpServletResponse</li>
+<li>FilterChain</li>
+</ul>
+<p>Filter 的两个作用如下：</p>
+<ul>
+<li>对调用链路做拦截，可阻止不必要的请求进入下游 Filter 或 Servlet</li>
+<li>修改下游 Filter 或 Servlet 使用的 HttpServletRequest 或 HttpServletResponse</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// do something before the rest of the application</span></span><br><span class="line">    chain.doFilter(request, response); <span class="comment">// invoke the rest of the application</span></span><br><span class="line">    <span class="comment">// do something after the rest of the application</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Web-DelegatingFilterProxy"><a href="#Spring-Web-DelegatingFilterProxy" class="headerlink" title="Spring Web DelegatingFilterProxy"></a>Spring Web DelegatingFilterProxy</h2><h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><p>DelegatingFilterProxy 是 Spring Web 为应用提供的用于桥接 Servlet Filter组件和 Spring Filter Bean 的管道。</p>
+<p>实际的 Filter 为</p>
+<ul>
+<li>bean name 为 targetBeanName 的 Spring Filter Bean</li>
+</ul>
+<p>或</p>
+<ul>
+<li>Servlet Filter 对象 delegate</li>
+</ul>
+<h3 id="配置方式"><a href="#配置方式" class="headerlink" title="配置方式"></a>配置方式</h3><ul>
+<li><p>Servlet 标准方式，不会触发 Spring Bean 的生命周期</p>
+<ul>
+<li><p>web.xml</p>
+</li>
+<li><p>Servlet 3.0+ 的注解驱动</p>
+</li>
+<li><p>Servlet 3.0+ 的 API 编程</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">filter</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>DelegatingFilterProxy<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-class</span>&gt;</span>org.springframework.web.filter.DelegatingFilterProxy<span class="tag">&lt;/<span class="name">filter-class</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">init-param</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">param-name</span>&gt;</span>targetBeanName<span class="tag">&lt;/<span class="name">param-name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">param-value</span>&gt;</span>someFilter<span class="tag">&lt;/<span class="name">param-value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">init-param</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">filter</span>&gt;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p>Spring Bean 定义的方式定义 DelegatingFilterProxy，会触发 Spring Bean 的生命周期，不会触发 Filter 的 <code>init()</code>方法</p>
+</li>
+</ul>
+<h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">initFilterBean()</span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">initFilterBean</span><span class="params">()</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">		<span class="keyword">synchronized</span> (<span class="keyword">this</span>.delegateMonitor) &#123;</span><br><span class="line">			<span class="comment">// 判断 Filter 对象是否为空，如果不为空则跳过</span></span><br><span class="line">			<span class="keyword">if</span> (<span class="keyword">this</span>.delegate == <span class="keyword">null</span>) &#123;</span><br><span class="line">				<span class="comment">// 如果 Filter 对象为空，则获取 targetBeanName</span></span><br><span class="line">				<span class="keyword">if</span> (<span class="keyword">this</span>.targetBeanName == <span class="keyword">null</span>) &#123;</span><br><span class="line">          			<span class="comment">// 获取 target bean name, 先从 filterConfig 中获取 filter name，</span></span><br><span class="line">          			<span class="comment">// 如果 filterConfig 为空则使用 GenericFilterBean#beanName</span></span><br><span class="line">					<span class="keyword">this</span>.targetBeanName = getFilterName();</span><br><span class="line">				&#125;</span><br><span class="line">        		<span class="comment">// 获取 WebApplicationContext </span></span><br><span class="line">				WebApplicationContext wac = findWebApplicationContext();</span><br><span class="line">				<span class="keyword">if</span> (wac != <span class="keyword">null</span>) &#123;</span><br><span class="line">					<span class="comment">// 根据名称和类型查找 Filter</span></span><br><span class="line">					<span class="keyword">this</span>.delegate = initDelegate(wac);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">findWebApplicationContext()</span><br><span class="line"><span class="function"><span class="keyword">protected</span> WebApplicationContext <span class="title">findWebApplicationContext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">		<span class="keyword">if</span> (<span class="keyword">this</span>.webApplicationContext != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="comment">// 如果用户自己加入的 webApplicationContext </span></span><br><span class="line">			<span class="keyword">if</span> (<span class="keyword">this</span>.webApplicationContext <span class="keyword">instanceof</span> ConfigurableApplicationContext) &#123;</span><br><span class="line">				ConfigurableApplicationContext cac = (ConfigurableApplicationContext) <span class="keyword">this</span>.webApplicationContext;</span><br><span class="line">				<span class="keyword">if</span> (!cac.isActive()) &#123;</span><br><span class="line">					<span class="comment">// 则刷新当前容器</span></span><br><span class="line">					cac.refresh();</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> <span class="keyword">this</span>.webApplicationContext;</span><br><span class="line">		&#125;</span><br><span class="line">    	<span class="comment">// 从 ServletContext 中获取 WebApplicationContext</span></span><br><span class="line">		String attrName = getContextAttribute();</span><br><span class="line">		<span class="keyword">if</span> (attrName != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="keyword">return</span> WebApplicationContextUtils.getWebApplicationContext(getServletContext(), attrName);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> WebApplicationContextUtils.findWebApplicationContext(getServletContext());</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">initDelegate(WebApplicationContext wac)</span><br><span class="line"><span class="function"><span class="keyword">protected</span> Filter <span class="title">initDelegate</span><span class="params">(WebApplicationContext wac)</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">    	<span class="comment">// 根据 bean name 和 Filter 类型依赖查找 WebApplicationContext</span></span><br><span class="line">		String targetBeanName = getTargetBeanName();</span><br><span class="line">		Assert.state(targetBeanName != <span class="keyword">null</span>, <span class="string">&quot;No target bean name set&quot;</span>);</span><br><span class="line">		Filter delegate = wac.getBean(targetBeanName, Filter.class);</span><br><span class="line">		<span class="keyword">if</span> (isTargetFilterLifecycle()) &#123;</span><br><span class="line">			<span class="comment">// 显示调用 Filter 的 init() 方法</span></span><br><span class="line">			delegate.init(getFilterConfig());</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> delegate;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>判断 delegate 的 Filter 对象是否存在，如果补存在则执行下一步</li>
+<li>判断 targetBeanName 是否存在，存在则通过名称 + 类型的方式查找 Filter 并赋值给 delegate<ul>
+<li>获取 WebApplicationContext 依赖于 ContextLoaderListener 或 DispatcherServlet</li>
+</ul>
+</li>
+</ul>
+<h3 id="ContextLoaderListener-V-S-DispatcherServlet"><a href="#ContextLoaderListener-V-S-DispatcherServlet" class="headerlink" title="ContextLoaderListener V.S DispatcherServlet"></a>ContextLoaderListener V.S DispatcherServlet</h3><ul>
+<li>ContextLoaderListener  Root WebApplicationContext</li>
+<li>DispatcherServlet Child WebApplicationContext</li>
+<li>DispatcherServlet 本质是一个 Servlet，它拓展了 HttpServlet，每个 DispatcherServlet 定义了一个Spring web Application 并都与 WebApplicationContext 相关</li>
+<li>ContextLoaderListener 为 Spring 对 Servlet 监听器的封装，本质上还是 Servlet 监听器，它创建一个根应用程序上下文（ApplicationContext）,并与所有的 DispatcherServlet 上下创建的上下文共享</li>
+<li>在Spring Web应用程序中，有两种类型的容器，ApplicationContext 和 WebApplicationContext</li>
+<li>ApplicationContext 是由 ContextLoaderListener 创建并配置的或 web.xml</li>
+<li>而 WebApplicationContext 是 ApplicationContext 的子上下文环境。是由 DispatcherServlet 启动时创建配置的</li>
+<li>如果 web 应用程序没有配置 Listener，只配置了DispatcherServlet，web 容器启动时不会初始化 Spring Web 上下文，因为 Spring Web 是基于 Spring，没有配置Spring，所以也不会启动它的子上下文Spring Web</li>
+</ul>
+<p><img src="/2021/04/29/Security/Spring-SecurityConfig.png" alt="Spring-SecurityConfig"></p>
+<ul>
+<li><code>ContextLoaderListener</code> 创建根应用程序上下文</li>
+<li><code>DispatcherServlet</code> 为每个 servlet 创建一个子应用程序上下文</li>
+<li>子上下文可以访问根上下文中定义的 bean</li>
+<li>根上下文中的 Bean 无法直接访问子上下文中的 bean</li>
+<li>所有上下文都被添加到 ServletContext</li>
+<li>可以使用 <code>WebApplicationContextUtils</code> 类访问根上下文</li>
+</ul>
+<h2 id="Spring-Web-GenericFilterBean"><a href="#Spring-Web-GenericFilterBean" class="headerlink" title="Spring Web GenericFilterBean"></a>Spring Web GenericFilterBean</h2><h3 id="类图"><a href="#类图" class="headerlink" title="类图"></a>类图</h3><p><img src="https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fcc29744d-dd1b-42ab-9d36-3f7a6aa0bfea%2FUntitled.png?table=block&id=8298af09-c7e7-43cb-bef3-e2b356b91c1c&width=1630&userId=&cache=v2" alt="img"></p>
+<ul>
+<li>EnvironmentAware Environment 回调</li>
+<li>EnvironmentCapable 创建配置 Environment</li>
+<li>ServletContextAware ServletContext 回调</li>
+<li>BeanNameAware bean name 回调</li>
+<li>InitializingBean 初始化 Bean</li>
+<li>DisposableBean 销毁 bean</li>
+<li>实现 Filter ，可利用标准 Servlet Filter 的生命周期</li>
+</ul>
+<p>通过上面的实现可看出，GenericFilterBean 可被以下两个方式之一管理生命周期</p>
+<ul>
+<li>标准 Servlet 容器<ul>
+<li>Filter#init()<ul>
+<li>initFilterBean() 模板方法</li>
+</ul>
+</li>
+<li>Filter#destroy()</li>
+</ul>
+</li>
+<li>Spring IoC 容器<ul>
+<li>InitializingBean#afterPropertiesSet()<ul>
+<li>initFilterBean() 模板方法</li>
+</ul>
+</li>
+<li>DisposableBean#destroy()</li>
+</ul>
+</li>
+</ul>
+<h3 id="主要方法"><a href="#主要方法" class="headerlink" title="主要方法"></a>主要方法</h3><p><img src="/2021/04/29/Security/image-20210429103200466.png" alt="image-20210429103200466"></p>
+<h3 id="实现特点"><a href="#实现特点" class="headerlink" title="实现特点"></a>实现特点</h3><ul>
+<li>通常拓展 GenericFilterBean 的类并非传统的 Spring Bean，但它需要 Spring Bean 的生命周期</li>
+<li>GenericFilterBean 的实现往往是通过 web.xml 文件或 Servlet 3.0+ 注解或 API 注册</li>
+<li>属性的绑定通过 FilterConfig</li>
+</ul>
+<h3 id="初始化方法"><a href="#初始化方法" class="headerlink" title="初始化方法"></a>初始化方法</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">(FilterConfig filterConfig)</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">		Assert.notNull(filterConfig, <span class="string">&quot;FilterConfig must not be null&quot;</span>);</span><br><span class="line"></span><br><span class="line">		<span class="keyword">this</span>.filterConfig = filterConfig;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 将 FilterConfig 配置属性转为 Spring PropertyValues</span></span><br><span class="line">		PropertyValues pvs = <span class="keyword">new</span> FilterConfigPropertyValues(filterConfig, <span class="keyword">this</span>.requiredProperties);</span><br><span class="line">		<span class="keyword">if</span> (!pvs.isEmpty()) &#123;</span><br><span class="line">			<span class="keyword">try</span> &#123;</span><br><span class="line">				<span class="comment">// 获取给定目标对象的 BeanWrapper</span></span><br><span class="line">				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(<span class="keyword">this</span>);</span><br><span class="line">				<span class="comment">// 生成 ResourceLoader</span></span><br><span class="line">				ResourceLoader resourceLoader = <span class="keyword">new</span> ServletContextResourceLoader(filterConfig.getServletContext());</span><br><span class="line">				Environment env = <span class="keyword">this</span>.environment;</span><br><span class="line">				<span class="keyword">if</span> (env == <span class="keyword">null</span>) &#123;</span><br><span class="line">					env = <span class="keyword">new</span> StandardServletEnvironment();</span><br><span class="line">				&#125;</span><br><span class="line">				bw.registerCustomEditor(Resource.class, <span class="keyword">new</span> ResourceEditor(resourceLoader, env));</span><br><span class="line">				<span class="comment">// 交于子类定制 BeanWrapper</span></span><br><span class="line">				initBeanWrapper(bw);</span><br><span class="line">				<span class="comment">// 将 PropertyValues 注入到属性</span></span><br><span class="line">				bw.setPropertyValues(pvs, <span class="keyword">true</span>);</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">catch</span> (BeansException ex) &#123;</span><br><span class="line">				String msg = <span class="string">&quot;Failed to set bean properties on filter &#x27;&quot;</span> +</span><br><span class="line">					filterConfig.getFilterName() + <span class="string">&quot;&#x27;: &quot;</span> + ex.getMessage();</span><br><span class="line">				logger.error(msg, ex);</span><br><span class="line">				<span class="keyword">throw</span> <span class="keyword">new</span> NestedServletException(msg, ex);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 模板方法，交于子类实现</span></span><br><span class="line">		initFilterBean();</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">			logger.debug(<span class="string">&quot;Filter &#x27;&quot;</span> + filterConfig.getFilterName() + <span class="string">&quot;&#x27; configured for use&quot;</span>);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Security-FilterChainProxy"><a href="#Spring-Security-FilterChainProxy" class="headerlink" title="Spring Security FilterChainProxy"></a>Spring Security FilterChainProxy</h2><h3 id="说明-1"><a href="#说明-1" class="headerlink" title="说明"></a>说明</h3><p>FilterChainProxy 是 Spring Security 提供的一个特殊的 Filter，它允许通过 SecurityFilterChain 委托给许多 Filter，FilterChainProxy 是一个 Bean，通常被 DelegatingFilterProxy 包装。</p>
+<h3 id="代码结构"><a href="#代码结构" class="headerlink" title="代码结构"></a>代码结构</h3><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">doFilter()</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span></span></span><br><span class="line"><span class="function">			<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">		<span class="keyword">boolean</span> clearContext = request.getAttribute(FILTER_APPLIED) == <span class="keyword">null</span>;</span><br><span class="line">		<span class="keyword">if</span> (!clearContext) &#123;</span><br><span class="line">			<span class="comment">// 将 HttpServletRequest、HttpServletResponse、FilterChain 委托给 SecurityFilterChain 的 Filters 处理</span></span><br><span class="line">			doFilterInternal(request, response, chain);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			request.setAttribute(FILTER_APPLIED, Boolean.TRUE);</span><br><span class="line">			doFilterInternal(request, response, chain);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">catch</span> (RequestRejectedException ex) &#123;</span><br><span class="line">			<span class="keyword">this</span>.requestRejectedHandler.handle((HttpServletRequest) request, (HttpServletResponse) response, ex);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">finally</span> &#123;</span><br><span class="line">			<span class="comment">// 释放 ThreadLocal</span></span><br><span class="line">			SecurityContextHolder.clearContext();</span><br><span class="line">			request.removeAttribute(FILTER_APPLIED);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">doFilterInternal(HttpServletRequest ,HttpServletResponse, FilterChain)</span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doFilterInternal</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span></span></span><br><span class="line"><span class="function">			<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">		<span class="comment">// 装饰器模式装饰 HttpServletRequest</span></span><br><span class="line">		FirewalledRequest firewallRequest = <span class="keyword">this</span>.firewall.getFirewalledRequest((HttpServletRequest) request);</span><br><span class="line">		HttpServletResponse firewallResponse = <span class="keyword">this</span>.firewall.getFirewalledResponse((HttpServletResponse) response);</span><br><span class="line">		<span class="comment">// 获取 http 请求路径匹配到的 SecurityFilterChain 中的 Filters</span></span><br><span class="line">		List&lt;Filter&gt; filters = getFilters(firewallRequest);</span><br><span class="line">		<span class="keyword">if</span> (filters == <span class="keyword">null</span> || filters.size() == <span class="number">0</span>) &#123;</span><br><span class="line">			<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">				logger.trace(LogMessage.of(() -&gt; <span class="string">&quot;No security for &quot;</span> + requestLine(firewallRequest)));</span><br><span class="line">			&#125;</span><br><span class="line">			firewallRequest.reset();</span><br><span class="line">			chain.doFilter(firewallRequest, firewallResponse);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">			logger.debug(LogMessage.of(() -&gt; <span class="string">&quot;Securing &quot;</span> + requestLine(firewallRequest)));</span><br><span class="line">		&#125;</span><br><span class="line">		VirtualFilterChain virtualFilterChain = <span class="keyword">new</span> VirtualFilterChain(firewallRequest, chain, filters);</span><br><span class="line">		<span class="comment">// 委派依次调用 doFilter</span></span><br><span class="line">		virtualFilterChain.doFilter(firewallRequest, firewallResponse);</span><br><span class="line">	&#125;</span><br><span class="line">getFilters(HttpServletRequest request)</span><br><span class="line"><span class="function"><span class="keyword">private</span> List&lt;Filter&gt; <span class="title">getFilters</span><span class="params">(HttpServletRequest request)</span> </span>&#123;</span><br><span class="line">		<span class="keyword">int</span> count = <span class="number">0</span>;</span><br><span class="line">		<span class="keyword">for</span> (SecurityFilterChain chain : <span class="keyword">this</span>.filterChains) &#123;</span><br><span class="line">			<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">				logger.trace(LogMessage.format(<span class="string">&quot;Trying to match request against %s (%d/%d)&quot;</span>, chain, ++count,</span><br><span class="line">						<span class="keyword">this</span>.filterChains.size()));</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">// 过滤请求，获取到与当前请求相匹配的 SecurityFilterChain</span></span><br><span class="line">			<span class="keyword">if</span> (chain.matches(request)) &#123;</span><br><span class="line">				<span class="comment">// 直接返回匹配到的 Filters</span></span><br><span class="line">				<span class="keyword">return</span> chain.getFilters();</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Spring-Security-SecurityFilterChain"><a href="#Spring-Security-SecurityFilterChain" class="headerlink" title="Spring Security SecurityFilterChain"></a>Spring Security SecurityFilterChain</h3><p><img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/multi-securityfilterchain.png" alt="multi securityfilterchain"></p>
+<ul>
+<li>FilterChainProxy 使用 SecurityFilterChain 来确定应该为此请求调用哪个 Spring Security Filter</li>
+<li>SecurityFilterChain 中的 Security Filter 通常是 bean，但它们是通过 FilterChainProxy 而不是 DelegatingFilterProxy 注册的</li>
+<li>每个 SecurityFilterChain 可以是唯一的，并且可以隔离配置</li>
+</ul>
+<figure class="highlight stylus"><table><tr><td class="code"><pre><span class="line">SecurityFilterChain` 唯一实现类 `org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.web</span>.DefaultSecurityFilterChain</span><br></pre></td></tr></table></figure>
+
+<p><code>DefaultSecurityFilterChain</code>关联对象</p>
+<ul>
+<li><code>org.springframework.security.web.util.matcher.RequestMatcher</code> http 请求匹配规则</li>
+<li><code>List&lt;Filter&gt;</code> Filter 对象列表</li>
+</ul>
+<p><code>DefaultSecurityFilterChain</code> 的构建方式</p>
+<ul>
+<li><p>```<br>org.springframework.security.config.annotation.web.builders.HttpSecurity</p>
+<figure class="highlight angelscript"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">  - `SecurityBuilder&lt;DefaultSecurityFilterChain&gt;`</span><br><span class="line"></span><br><span class="line">### SecurityBuilder 的设计模式</span><br><span class="line"></span><br><span class="line">- 采用泛型参数来决定构建对象的类型，如</span><br><span class="line"></span><br><span class="line">  - `org.springframework.security.config.annotation.web.builders.HttpSecurity`</span><br><span class="line"></span><br><span class="line">  ```java</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="symbol">HttpSecurity</span> <span class="symbol">extends</span> <span class="symbol">AbstractConfiguredSecurityBuilder</span>&lt;<span class="symbol">DefaultSecurityFilterChain, <span class="symbol">HttpSecurity</span></span>&gt;</span><br><span class="line">  		<span class="symbol">implements</span> <span class="symbol">SecurityBuilder</span>&lt;<span class="symbol">DefaultSecurityFilterChain</span>&gt;, <span class="symbol">HttpSecurityBuilder</span>&lt;<span class="symbol">HttpSecurity</span>&gt;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>org.springframework.security.config.annotation.web.builders.WebSecurity</code></li>
+</ul>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">WebSecurity</span> <span class="keyword">extends</span> <span class="title">AbstractConfiguredSecurityBuilder</span>&lt;<span class="title">Filter</span>, <span class="title">WebSecurity</span>&gt;</span></span><br><span class="line"><span class="class">		<span class="keyword">implements</span> <span class="title">SecurityBuilder</span>&lt;<span class="title">Filter</span>&gt;, <span class="title">ApplicationContextAware</span></span></span><br></pre></td></tr></table></figure></li>
+<li><p>```<br>org.springframework.security.config.annotation.AbstractSecurityBuilder#build</p>
+<figure class="highlight stylus"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">  - 模板方法 `org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.config</span><span class="selector-class">.annotation</span>.AbstractSecurityBuilder#doBuild`</span><br><span class="line"></span><br><span class="line">- ```</span><br><span class="line">  org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.config</span><span class="selector-class">.annotation</span>.AbstractConfiguredSecurityBuilder#doBuild</span><br></pre></td></tr></table></figure>
+
+<p> 中涵盖了 build 的构建周期</p>
+<ul>
+<li><p>初始化前 <code>beforeInit()</code> - 模板方法</p>
+</li>
+<li><p>初始化 </p>
+<figure class="highlight stylus"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="title">init</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>迭代 <code>SecurityConfigurer#init(SecurityBuilder)</code> 方法</li>
+</ul>
+</li>
+<li><p>配置前 <code>beforeConfigure()</code> - 模板方法</p>
+</li>
+<li><p>配置</p>
+<figure class="highlight stylus"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="title">configure</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>迭代 <code>SecurityConfigurer#configure(SecurityBuilder)</code>方法</li>
+<li>其中被迭代的 <code>SecurityConfigure</code> 基本为 <code>WebSecurityConfigurerAdapter</code> 的 Bean</li>
+</ul>
+</li>
+<li><p>构建 <code>O result = performBuild()</code> - 模板方法</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="委托关系"><a href="#委托关系" class="headerlink" title="委托关系"></a>委托关系</h2><p>![img](security/delegate relation.png)</p>
+<h3 id="SecurityFilterChain-选择"><a href="#SecurityFilterChain-选择" class="headerlink" title="SecurityFilterChain 选择"></a>SecurityFilterChain 选择</h3><p><img src="/2021/04/29/Security/SecurityFilterChain.png" alt="img"></p>
+<h3 id="说明-2"><a href="#说明-2" class="headerlink" title="说明"></a>说明</h3><ul>
+<li>DelegatingFilterProxy 不一定为标准 Spring Bean</li>
+<li>FilterChainProxy 一定是 Spring 标准 Bean</li>
+<li>FilterChainProxy 扩展 GenericFilterBean 实现，意味着FilterChainProxy 是通过 Spring Bean 生命周期来初始化依赖的组件</li>
+<li>FilterChainProxy 与 SecurityFilterChain 的关联关系为1:N，一个SecurityFilterChain 关联了 M 个 Filter 实现</li>
+</ul>
+<h3 id="注"><a href="#注" class="headerlink" title="注"></a>注</h3><p>每个 SecurityFilterChain 中的 Filters 都有一个固定顺序，控制顺序的类为 <code>org.springframework.security.config.annotation.web.builders.FilterComparator</code></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">FilterComparator() &#123;</span><br><span class="line">		Step order = <span class="keyword">new</span> Step(INITIAL_ORDER, ORDER_STEP);</span><br><span class="line">		put(ChannelProcessingFilter.class, order.next());</span><br><span class="line">		order.next(); <span class="comment">// gh-8105</span></span><br><span class="line">		put(WebAsyncManagerIntegrationFilter.class, order.next());</span><br><span class="line">		put(SecurityContextPersistenceFilter.class, order.next());</span><br><span class="line">		put(HeaderWriterFilter.class, order.next());</span><br><span class="line">		put(CorsFilter.class, order.next());</span><br><span class="line">		put(CsrfFilter.class, order.next());</span><br><span class="line">		put(LogoutFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationRequestFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(X509AuthenticationFilter.class, order.next());</span><br><span class="line">		put(AbstractPreAuthenticatedProcessingFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.cas.web.CasAuthenticationFilter&quot;</span>, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(UsernamePasswordAuthenticationFilter.class, order.next());</span><br><span class="line">		order.next(); <span class="comment">// gh-8105</span></span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.openid.OpenIDAuthenticationFilter&quot;</span>, order.next());</span><br><span class="line">		put(DefaultLoginPageGeneratingFilter.class, order.next());</span><br><span class="line">		put(DefaultLogoutPageGeneratingFilter.class, order.next());</span><br><span class="line">		put(ConcurrentSessionFilter.class, order.next());</span><br><span class="line">		put(DigestAuthenticationFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(BasicAuthenticationFilter.class, order.next());</span><br><span class="line">		put(RequestCacheAwareFilter.class, order.next());</span><br><span class="line">		put(SecurityContextHolderAwareRequestFilter.class, order.next());</span><br><span class="line">		put(JaasApiIntegrationFilter.class, order.next());</span><br><span class="line">		put(RememberMeAuthenticationFilter.class, order.next());</span><br><span class="line">		put(AnonymousAuthenticationFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2AuthorizationCodeGrantFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(SessionManagementFilter.class, order.next());</span><br><span class="line">		put(ExceptionTranslationFilter.class, order.next());</span><br><span class="line">		put(FilterSecurityInterceptor.class, order.next());</span><br><span class="line">		put(SwitchUserFilter.class, order.next());</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Security-构建器-WebSecurity-amp-HttpSecurity"><a href="#Spring-Security-构建器-WebSecurity-amp-HttpSecurity" class="headerlink" title="Spring Security 构建器 WebSecurity &amp;  HttpSecurity"></a>Spring Security 构建器 WebSecurity &amp;  HttpSecurity</h2><ul>
+<li><code>HttpSecurity</code> 用于定义某些需要安全过滤的请求，也可以定义某些请求不需要安全过滤</li>
+<li><code>WebSecurity</code> 通过 <code>HttpSecurity</code> 定义请求安全过滤，也可通过其他方式忽略某些请求</li>
+<li><code>WebSecurity</code> 面向整个 Spring Security , <code>HttpSecurity</code> 仅是其一部分</li>
+<li><code>WebSecurity</code> 构建的是整个 Spring Security 的 <code>FilterChainProxy</code></li>
+<li><code>HttpSecurity</code> 构建的是 <code>FilterChainProxy</code> 中的一个 <code>SecurityFilterChain</code> ，如果需要构建多个 <code>SecurityFilterChain</code> 时，需生成多个 <code>HttpSecurity</code></li>
+</ul>
+<h2 id="Spring-Security-装配"><a href="#Spring-Security-装配" class="headerlink" title="Spring Security 装配"></a>Spring Security 装配</h2><h3 id="XML-解析和装配"><a href="#XML-解析和装配" class="headerlink" title="XML 解析和装配"></a>XML 解析和装配</h3><figure class="highlight reasonml"><table><tr><td class="code"><pre><span class="line">org.springframework.security.config.http.HttpSecurityBeanDefinitionParser#registerFilterChainProxyIfNecessary</span><br><span class="line">static void register<span class="constructor">FilterChainProxyIfNecessary(ParserContext <span class="params">pc</span>, Object <span class="params">source</span>)</span> &#123;</span><br><span class="line">		BeanDefinitionRegistry registry = pc.get<span class="constructor">Registry()</span>;</span><br><span class="line">		<span class="keyword">if</span> (registry.contains<span class="constructor">BeanDefinition(BeanIds.FILTER_CHAIN_PROXY)</span>) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// Not already registered, so register the list of filter chains and the</span></span><br><span class="line">		<span class="comment">// FilterChainProxy</span></span><br><span class="line">		BeanDefinition listFactoryBean = <span class="keyword">new</span> <span class="constructor">RootBeanDefinition(ListFactoryBean.<span class="params">class</span>)</span>;</span><br><span class="line">		listFactoryBean.get<span class="constructor">PropertyValues()</span>.add(<span class="string">&quot;sourceList&quot;</span>, <span class="keyword">new</span> <span class="constructor">ManagedList()</span>);</span><br><span class="line">		pc.register<span class="constructor">BeanComponent(<span class="params">new</span> BeanComponentDefinition(<span class="params">listFactoryBean</span>, BeanIds.FILTER_CHAINS)</span>);</span><br><span class="line">		<span class="comment">// 构建 FilterChainProxy 对象的 BeanDefinitionBuilder</span></span><br><span class="line">		BeanDefinitionBuilder fcpBldr = <span class="module-access"><span class="module"><span class="identifier">BeanDefinitionBuilder</span>.</span></span>root<span class="constructor">BeanDefinition(FilterChainProxy.<span class="params">class</span>)</span>;</span><br><span class="line">		<span class="comment">// 属性填充</span></span><br><span class="line">		fcpBldr.get<span class="constructor">RawBeanDefinition()</span>.set<span class="constructor">Source(<span class="params">source</span>)</span>;</span><br><span class="line">		fcpBldr.add<span class="constructor">ConstructorArgReference(BeanIds.FILTER_CHAINS)</span>;</span><br><span class="line">		fcpBldr.add<span class="constructor">PropertyValue(<span class="string">&quot;filterChainValidator&quot;</span>, <span class="params">new</span> RootBeanDefinition(DefaultFilterChainValidator.<span class="params">class</span>)</span>);</span><br><span class="line">		BeanDefinition fcpBean = fcpBldr.get<span class="constructor">BeanDefinition()</span>;</span><br><span class="line">		pc.register<span class="constructor">BeanComponent(<span class="params">new</span> BeanComponentDefinition(<span class="params">fcpBean</span>, BeanIds.FILTER_CHAIN_PROXY)</span>);</span><br><span class="line">		registry.register<span class="constructor">Alias(BeanIds.FILTER_CHAIN_PROXY, BeanIds.SPRING_SECURITY_FILTER_CHAIN)</span>;</span><br><span class="line">		BeanDefinitionBuilder requestRejected = BeanDefinitionBuilder</span><br><span class="line">				.root<span class="constructor">BeanDefinition(RequestRejectedHandlerPostProcessor.<span class="params">class</span>)</span>;</span><br><span class="line">		requestRejected.set<span class="constructor">Role(BeanDefinition.ROLE_INFRASTRUCTURE)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(<span class="string">&quot;requestRejectedHandler&quot;</span>)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(BeanIds.FILTER_CHAIN_PROXY)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(<span class="string">&quot;requestRejectedHandler&quot;</span>)</span>;</span><br><span class="line">		AbstractBeanDefinition requestRejectedBean = requestRejected.get<span class="constructor">BeanDefinition()</span>;</span><br><span class="line">    	<span class="comment">// 生成 bean name</span></span><br><span class="line">		String requestRejectedPostProcessorName = pc.get<span class="constructor">ReaderContext()</span>.generate<span class="constructor">BeanName(<span class="params">requestRejectedBean</span>)</span>;</span><br><span class="line">		<span class="comment">// 注册 bean</span></span><br><span class="line">		registry.register<span class="constructor">BeanDefinition(<span class="params">requestRejectedPostProcessorName</span>, <span class="params">requestRejectedBean</span>)</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="自动装配"><a href="#自动装配" class="headerlink" title="自动装配"></a>自动装配</h3><figure class="highlight reasonml"><table><tr><td class="code"><pre><span class="line">org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer#insertSpringSecurityFilterChain</span><br><span class="line"><span class="keyword">private</span> void insert<span class="constructor">SpringSecurityFilterChain(ServletContext <span class="params">servletContext</span>)</span> &#123;</span><br><span class="line">		String filterName = DEFAULT_FILTER_NAME;</span><br><span class="line">		<span class="comment">// 创建 DelegatingFilterProxy</span></span><br><span class="line">		DelegatingFilterProxy springSecurityFilterChain = <span class="keyword">new</span> <span class="constructor">DelegatingFilterProxy(<span class="params">filterName</span>)</span>;</span><br><span class="line">		String contextAttribute = get<span class="constructor">WebApplicationContextAttribute()</span>;</span><br><span class="line">		<span class="keyword">if</span> (contextAttribute != null) &#123;</span><br><span class="line">			springSecurityFilterChain.set<span class="constructor">ContextAttribute(<span class="params">contextAttribute</span>)</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 动态加入 Filters</span></span><br><span class="line">		register<span class="constructor">Filter(<span class="params">servletContext</span>, <span class="params">true</span>, <span class="params">filterName</span>, <span class="params">springSecurityFilterChain</span>)</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>AbstractSecurityWebApplicationInitializer</code> 实现了 Spring Web 的 <code>WebApplicationInitializer</code>，而 <code>WebApplicationInitializer</code> 被桥接到 <code>SpringServletContainerInitializer</code>, 同时 <code>SpringServletContainerInitializer</code> 实现了 Servlet 的 <code>ServletContainerInitializer</code>，因此当 web 容器启动时 <code>AbstractSecurityWebApplicationInitializer</code> 的 <code>onStartup(ServletContext servletContext)</code> 方法被执行。</p>
+</blockquote>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q &amp; A"></a>Q &amp; A</h2><h3 id="Q1：SecurityFilterChain-的优先级顺序？"><a href="#Q1：SecurityFilterChain-的优先级顺序？" class="headerlink" title="Q1：SecurityFilterChain 的优先级顺序？"></a>Q1：SecurityFilterChain 的优先级顺序？</h3><p><strong>A：</strong>应用程序每声明一个 <code>WebSecurityConfigurerAdapter</code> 类型的 Bean，都会产生一个 <code>SecurityFilterChain</code> ，Spring 根据应用程序标明的 @Order 或 Ordered 初始化和存储 <code>WebSecurityConfigurerAdapter</code> ，因此在 <code>FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 遍历匹配时是根据应用程序定义的 order 。</p>
+<h3 id="Q2：FilterChainProxy-与-SecurityFilterChain-的关联关系是-1-对-1，还是-1-对-N"><a href="#Q2：FilterChainProxy-与-SecurityFilterChain-的关联关系是-1-对-1，还是-1-对-N" class="headerlink" title="Q2：FilterChainProxy 与 SecurityFilterChain 的关联关系是 1 对 1，还是 1 对 N?"></a>Q2：FilterChainProxy 与 SecurityFilterChain 的关联关系是 1 对 1，还是 1 对 N?</h3><p><strong>A：</strong>1 对 N，详见章节 <strong>Spring Security SecurityFilterChain</strong></p>
+<h3 id="Q3：假设有两个-WebSecurityConfigurerAdapter-Bean，并且标注了不同的-Order，其中一个关闭-CSRF，另一个开启-CSRF，结果如何？"><a href="#Q3：假设有两个-WebSecurityConfigurerAdapter-Bean，并且标注了不同的-Order，其中一个关闭-CSRF，另一个开启-CSRF，结果如何？" class="headerlink" title="Q3：假设有两个 WebSecurityConfigurerAdapter Bean，并且标注了不同的 @Order，其中一个关闭 CSRF，另一个开启 CSRF，结果如何？"></a>Q3：假设有两个 <code>WebSecurityConfigurerAdapter</code> Bean，并且标注了不同的 @Order，其中一个关闭 CSRF，另一个开启 CSRF，结果如何？</h3><p><strong>测试</strong></p>
+<p><strong>Order 为 9998 的 SecurityConfig3，对 <code>/disable/\*</code> 请求路径开启 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(9998)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig3</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/disable/*&quot;</span>).csrf();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Order 为 9999 的 SecurityConfig2，对 <code>/disable/\*</code> 请求路径关闭 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(9999)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig2</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/disable/*&quot;</span>).disable();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Order 为 10000 的 SecurityConfig，对 <code>/enable</code> 请求路径开启 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(10000)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/enable&quot;</span>).csrf();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2021/04/29/Security/1.png" alt="img"></p>
+<ul>
+<li>debug 可以看到 order 为 9998 且开启 csrf 的 config 放在首位，path /disable/*</li>
+<li>第二个为 9999 且关闭 csrf 的 config，path：/disable/*</li>
+<li>第三个为10000 开启 csrf 的 config，path：/enable</li>
+</ul>
+<p><img src="/2021/04/29/Security/7.png" alt="img"></p>
+<p><img src="/2021/04/29/Security/8.png" alt="img"></p>
+<ul>
+<li>请求 /disable/2 时，会进入 <code>org.springframework.security.web.FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 方法。</li>
+<li>遍历选择 <code>SecurityFilterChain</code> 时，会返回第一个被命中的。</li>
+</ul>
+<p><img src="/2021/04/29/Security/3.png" alt="img"></p>
+<p><strong>由上面测试可得出，当设置相同RequestMatcher 的不同 <code>SecurityFilterChain</code> （安全策略）时，会根据应用程序定义的顺序选择，顺序优先的将被执行，排在后面的不会被执行。</strong></p>
+<h3 id="Q4：SecurityFilterChain-中关联的-M-个-Filter-是-Servlet-容器管理生命周期？还是-Spring-IoC-容器管理？"><a href="#Q4：SecurityFilterChain-中关联的-M-个-Filter-是-Servlet-容器管理生命周期？还是-Spring-IoC-容器管理？" class="headerlink" title="Q4：SecurityFilterChain 中关联的 M 个 Filter 是 Servlet 容器管理生命周期？还是 Spring IoC 容器管理？"></a>Q4：SecurityFilterChain 中关联的 M 个 Filter 是 Servlet 容器管理生命周期？还是 Spring IoC 容器管理？</h3><p><strong>A：</strong></p>
+<ul>
+<li><strong>Spring IoC  容器管理，SecurityFilterChain 关联的 Filters 基本都继承了 GenericFilterBean，而 GenericFilterBean 实现的 Servlet Filter <code>init(FilterConfig filterConfig)</code> 方法未曾被子类覆盖，而且 <code>GenericFilterBean#init(FilterConfig filterConfig)</code> 方法中调用的模板方法 <code>initFilterBean()</code> 仅被 <code>DelegatingFilterProxy</code> 实现，如下图。</strong></li>
+</ul>
+<p><img src="/2021/04/29/Security/4.png" alt="img"></p>
+<ul>
+<li><strong>SecurityFilterChain 关联的 Filters 由 <code>FilterComparator</code> 创建， <code>FilterComparator</code> 被 <code>HttpSecurity</code> 创建，而 <code>HttpSecurity</code> 是被Spring IoC 容器管理生命周期。</strong></li>
+</ul>
+<h2 id="其他说明"><a href="#其他说明" class="headerlink" title="其他说明"></a>其他说明</h2><p>Spring Security 5.4+ 版本可以不需继承 <code>WebSecurityConfigurerAdapter</code> 便可配置 <code>HttpSercurity</code>。</p>
+<p><strong>原配置方式如下</strong>：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http</span><br><span class="line">            .antMatcher(<span class="string">&quot;/**&quot;</span>).csrf().disable();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>现配置方式可选为</strong></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">BeanConfig</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> SecurityFilterChain <span class="title">filterChain2</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> http.antMatcher(<span class="string">&quot;/**&quot;</span>).csrf().disable()</span><br><span class="line">                .build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>新配置方式将配置和适配器 Adapter 解耦，同时 <code>HttpSecurity</code> 是自动注入。 <code>HttpSecurity</code> 的 Bean 创建已由内部包装。</p>
+<figure class="highlight haxe"><table><tr><td class="code"><pre><span class="line">org.springframework.security.config.annotation.web.configuration.HttpSecurityConfiguration</span><br><span class="line">@Bean(HTTPSECURITY_BEAN_NAME)</span><br><span class="line">@Scope(<span class="string">&quot;prototype&quot;</span>)</span><br><span class="line">HttpSecurity httpSecurity() throws Exception &#123;</span><br><span class="line">	WebSecurityConfigurerAdapter.LazyPasswordEncoder passwordEncoder = <span class="keyword">new</span> <span class="type">WebSecurityConfigurerAdapter</span>.LazyPasswordEncoder(</span><br><span class="line">			<span class="built_in">this</span>.context);</span><br><span class="line">	AuthenticationManagerBuilder authenticationBuilder = <span class="keyword">new</span> <span class="type">WebSecurityConfigurerAdapter</span>.DefaultPasswordEncoderAuthenticationManagerBuilder(</span><br><span class="line">			<span class="built_in">this</span>.objectPostProcessor, passwordEncoder);</span><br><span class="line">	authenticationBuilder.parentAuthenticationManager(authenticationManager());</span><br><span class="line">	HttpSecurity http = <span class="keyword">new</span> <span class="type">HttpSecurity</span>(<span class="built_in">this</span>.objectPostProcessor, authenticationBuilder, createSharedObjects());</span><br><span class="line">	<span class="comment">// @formatter:off</span></span><br><span class="line">	http</span><br><span class="line">		.csrf(withDefaults())</span><br><span class="line">		.addFilter(<span class="keyword">new</span> <span class="type">WebAsyncManagerIntegrationFilter</span>())</span><br><span class="line">		.exceptionHandling(withDefaults())</span><br><span class="line">		.headers(withDefaults())</span><br><span class="line">		.sessionManagement(withDefaults())</span><br><span class="line">		.securityContext(withDefaults())</span><br><span class="line">		.requestCache(withDefaults())</span><br><span class="line">		.anonymous(withDefaults())</span><br><span class="line">		.servletApi(withDefaults())</span><br><span class="line">		.logout(withDefaults())</span><br><span class="line">		.apply(<span class="keyword">new</span> <span class="type">DefaultLoginPageConfigurer</span>&lt;&gt;());</span><br><span class="line">	<span class="comment">// @formatter:on</span></span><br><span class="line">	<span class="keyword">return</span> http;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2021/04/29/Security/5.png" alt="img"></p>
+<p><img src="/2021/04/29/Security/6.png" alt="img"></p>
+<p>HttpSecurity 是通过原型模式生成的，因此应用每次生成 <code>SecurityFilterChain</code>  Bean 时，注入的 HttpSecurity 都为不同对象。</p>
+<p><code>SecurityFilterChain</code> 的顺序说明，当RequestMatcher 相同时</p>
+<ul>
+<li>可通过 <code>@Order</code> 注明每个 <code>SecurityFilterChain</code> Bean 的顺序，该顺序将影响<code>FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 的筛选，首先被命中的<code>SecurityFilterChain</code> 作为执行者，后面的将不被执行。</li>
+<li>同 Configuration 类中定义不同的 <code>SecurityFilterChain</code> Bean 且未标明顺序或顺序标注相同时，以方法定义的顺序由上往下存储在 <code>FilterChainProxy#filterChains</code>中。</li>
+<li>不同 Configuration 类定义不同的 <code>SecurityFilterChain</code> Bean 且未标明顺序或顺序标注相同时，spring根据类文件的顺序加载 Bean，可能会因 Configuration 类的加载顺序不同，导致到安全策略的执行不可控，开发者需自己去辨别哪个应该在前。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Java</category>
+        <category>Spring</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+        <tag>Spring</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Mysql Explain</title>
+    <url>/2021/04/27/Mysql%20Explain/</url>
+    <content><![CDATA[<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><blockquote>
+<p>前言：explain（执行计划），使用explain关键字可以模拟优化器执行sql查询语句，从而知道MySQL是如何处理sql语句。explain主要用于分析查询语句或表结构的性能瓶颈。</p>
+<p>注：本系列随笔如无特殊说明都MySQL版本都为5.7.22。</p>
+</blockquote>
+<span id="more"></span>
+
+<table>
+<thead>
+<tr>
+<th>id</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>select_type</strong></td>
+</tr>
+<tr>
+<td><strong>table</strong></td>
+</tr>
+<tr>
+<td><strong>partitions</strong></td>
+</tr>
+<tr>
+<td><strong>type</strong></td>
+</tr>
+<tr>
+<td><strong>possible_keys</strong></td>
+</tr>
+<tr>
+<td><strong>key</strong></td>
+</tr>
+<tr>
+<td><strong>key_len</strong></td>
+</tr>
+<tr>
+<td><strong>ref</strong></td>
+</tr>
+<tr>
+<td><strong>rows</strong></td>
+</tr>
+<tr>
+<td><strong>filtered</strong></td>
+</tr>
+<tr>
+<td><strong>Extra</strong></td>
+</tr>
+</tbody></table>
+<p>1.explain的作用<br>通过explain+sql语句可以知道如下内容：<br>①表的读取顺序。（对应id）</p>
+<p>②数据读取操作的操作类型。（对应select_type）</p>
+<p>③哪些索引可以使用。（对应possible_keys）</p>
+<p>④哪些索引被实际使用。（对应key）</p>
+<p>⑤表直接的引用。（对应ref）</p>
+<p>⑥每张表有多少行被优化器查询。（对应rows）</p>
+<p>2.explain包含的信息<br>explain使用：explain+sql语句，通过执行explain可以获得sql语句执行的相关信息。</p>
+<p>下面对explain的表头字段含义进行解释。</p>
+<p>注：下图中有些explain表头不包含partitions和filtered字段，是因为有些截图是直接从视频资料中截取的，当并不影响我们的分析。</p>
+<p>①id</p>
+<p>select查询的序列号，包含一组数字，表示查询中执行select子句或操作表的顺序，该字段通常与table字段搭配来分析。</p>
+<p>#1.id相同，执行顺序从上到下。</p>
+<p>id相同，执行顺序从上到下，搭配table列进行观察可知，执行顺序为t1-&gt;t3-&gt;t2。</p>
+<p>#2.id不同，如果是子查询，id的序号会递增，id值越大执行优先级越高。</p>
+<p>如果是子查询id的序号会递增，id值越大执行优先级越高，搭配table列可知，执行顺序为t3-&gt;t1-&gt;t2。</p>
+<p>#3.id相同不同，同时存在。</p>
+<p>id如果相同，可认为是同一组，执行顺序从上到下。在所有组中，id值越大执行优先级越高。所以执行顺序为t3-&gt;derived2(衍生表，也可以说临时表)-&gt;t2。</p>
+<p>总结：id的值表示select子句或表的执行顺序，id相同，执行顺序从上到下，id不同，值越大的执行优先级越高。</p>
+<p>②select_type</p>
+<p>查询的类型，主要用于区别普通查询、联合查询、子查询等复杂的查询。其值主要有六个：</p>
+<p>#1.SIMPLE</p>
+<p>简单的select查询，查询中不包含子查询或union查询。</p>
+<p>#2.PRIMARY</p>
+<p>查询中若包含任何复杂的子部分，最外层查询为PRIMARY，也就是最后加载的就是PRIMARY。</p>
+<p>#3.SUBQUERY</p>
+<p>在select或where列表中包含了子查询，就为被标记为SUBQUERY。</p>
+<p>#4.DERIVED</p>
+<p>在from列表中包含的子查询会被标记为DERIVED(衍生)，MySQL会递归执行这些子查询，将结果放在临时表中。</p>
+<p>#5.UNION</p>
+<p>若第二个select出现在union后，则被标记为UNION，若union包含在from子句的子查询中，外层select将被标记为DERIVED。</p>
+<p>#6.UNION RESULT</p>
+<p>从union表获取结果的select。</p>
+<p>③table</p>
+<p>显示sql操作属于哪张表的。</p>
+<p>④partitions</p>
+<p>官方定义为The matching partitions（匹配的分区），该字段应该是看table所在的分区吧（不晓得理解错误没）。值为NULL表示表未被分区。</p>
+<p>⑤type</p>
+<p>表示查询所使用的访问类型，type的值主要有八种，该值表示查询的sql语句好坏，从最好到最差依次为：system&gt;const&gt;eq_ref&gt;ref&gt;range&gt;index&gt;ALL。</p>
+<p>要详细了解type取值的作用，需要用数据说话。创建tb_emp（员工表）和tb_dept（部门表）。</p>
+<p>a）tb_emp表。</p>
+<p>复制代码</p>
+<p>DROP TABLE IF EXISTS <code>tb_emp</code>;<br>CREATE TABLE <code>tb_emp</code> (<br>  <code>id</code> int(11) NOT NULL AUTO_INCREMENT,<br>  <code>name</code> varchar(20) NOT NULL,<br>  <code>deptid</code> int(11) NOT NULL,<br>  PRIMARY KEY (<code>id</code>),<br>  KEY <code>idx_tb_emp_name</code> (<code>name</code>)<br>) ENGINE=InnoDB DEFAULT CHARSET=utf8;</p>
+<p>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘jack’, ‘1’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘tom’, ‘1’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘tonny’, ‘1’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘mary’, ‘2’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘rose’, ‘2’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘luffy’, ‘3’);<br>INSERT INTO <code>tb_emp</code>(name,deptid) VALUES (‘outman’, ‘4’);<br>复制代码</p>
+<p>b）tb_dept表。</p>
+<p>复制代码</p>
+<p>DROP TABLE IF EXISTS <code>tb_dept</code>;<br>CREATE TABLE <code>tb_dept</code> (<br>  <code>id</code> int(11) NOT NULL AUTO_INCREMENT,<br>  <code>deptname</code> varchar(20) NOT NULL,<br>  PRIMARY KEY (<code>id</code>)<br>) ENGINE=InnoDB DEFAULT CHARSET=utf8;</p>
+<p>INSERT INTO <code>tb_dept</code>(deptname) VALUES (‘研发’);<br>INSERT INTO <code>tb_dept</code>(deptname) VALUES (‘测试’);<br>INSERT INTO <code>tb_dept</code>(deptname) VALUES (‘运维’);<br>INSERT INTO <code>tb_dept</code>(deptname) VALUES (‘经理’);<br>复制代码</p>
+<p>#1.system</p>
+<p>表只有一行记录（等于系统表），是const的特例类型，平时不会出现，可以忽略不计。</p>
+<p>但是笔者发现在MySQL5.7.22时，不会出现该字段值，只能出现const，但是在MySQL5.7版本以下可以出现该情况。猜测MySQL5.7版本是不是进行了优化，因为system官网的解释：</p>
+<p>5.5.48：</p>
+<p>5.7.22：</p>
+<p>注：两个引擎的执行信息不一样，5.5.48执行过程中产生了临时表（DERIVED），5.7.22为简单查询。</p>
+<p>#2.const</p>
+<p>表示通过一次索引就找到了结果，常出现于primary key或unique索引。因为只匹配一行数据，所以查询非常快。如将主键置于where条件中，MySQL就能将查询转换为一个常量。</p>
+<p>注：对于system和const可能实际意义并不是很大，因为单表单行查询本来就快，意义不大。</p>
+<p>#3.eq_ref</p>
+<p>唯一索引扫描，对于每个索引键，表中只有一条记录与之匹配。常见主键或唯一索引扫描。</p>
+<p>注：经理只有一人，进行了tb_dept的主键扫描。</p>
+<p>#4.ref</p>
+<p>非唯一性索引扫描，返回匹配某个单独值的所有行。本质上也是一种索引访问，返回匹配某值（某条件）的多行值，属于查找和扫描的混合体。</p>
+<p>由于是非唯一性索引扫描，所以对tb_emp表的deptid字段创建索引：</p>
+<p>create index idx_tb_emp_deptid on tb_emp(deptid);</p>
+<p>#5.range</p>
+<p>只检索给定范围的行，使用一个索引来检索行，可以在key列中查看使用的索引，一般出现在where语句的条件中，如使用between、&gt;、&lt;、in等查询。</p>
+<p>这种索引的范围扫描比全表扫描要好，因为索引的开始点和结束点都固定，不用扫描全索引。</p>
+<p>虽然我们为deptid字段创建了索引并在where中使用了between等，但在如下情况type仍为ALL。</p>
+<p>对比两图，可以看到使用deptid和id进行操作，其type的值一个是ALL也就是进行了全表扫描，一个是range进行了指定索引范围值检索。可能原因deptid并不是唯一索引。</p>
+<p>对于以上问题，需要具体问题具体分析，并不能一概而论。</p>
+<p>#6.index</p>
+<p>全索引扫描，index和ALL的区别：index只遍历索引树，通常比ALL快，因为索引文件通常比数据文件小。虽说index和ALL都是全表扫描，但是index是从索引中读取，ALL是从磁盘中读取。</p>
+<p>#7.ALL</p>
+<p>全表扫描。</p>
+<p>注：一般来说，需保证查询至少达到range级别，最好能达到ref。</p>
+<p>⑥possible_keys和key、key_len</p>
+<p>possible_keys：显示可能应用在表中的索引，可能一个或多个。查询涉及到的字段若存在索引，则该索引将被列出，但不一定被查询实际使用。</p>
+<p>key：实际中使用的索引，如为NULL，则表示未使用索引。若查询中使用了覆盖索引，则该索引和查询的select字段重叠。</p>
+<p>key_len：表示索引中所使用的字节数，可通过该列计算查询中使用的索引长度。在不损失精确性的情况下，长度越短越好。key_len显示的值为索引字段的最大可能长度，并非实际使用长度，即key_len是根据表定义计算而得，并不是通过表内检索出的。</p>
+<p>简单理解：possible_keys表示理论上可能用到的索引，key表示实际中使用的索引。</p>
+<p>possible_keys为NULL表示可能未用到索引，但key=idx_deptid表示在实际查询的过程中进行了索引的全扫描。</p>
+<p>通过下面的例子来理解key_len，首先为name字段创建索引：</p>
+<p>create index idx_name on tb_emp(name);</p>
+<p>注：在使用索引查询时，当条件越精确，key_len的长度可能会越长，所以在不影响结果的情况下，key_len的值越短越好。</p>
+<p>⑦ref</p>
+<p>显示关联的字段。如果使用常数等值查询，则显示const，如果是连接查询，则会显示关联的字段。</p>
+<p>注：由于id相同，因此从上到下执行：</p>
+<p>#1.tb_emp表为非唯一性索引扫描，实际使用的索引列为idx_name，由于tb_emp.name=’rose’为一个常量，所以ref=const。</p>
+<p>#2.tb_dept为唯一索引扫描，从sql语句可以看出，实际使用了PRIMARY主键索引，ref=db01.tb_emp.deptid表示关联了db01数据库中tb_emp表的deptid字段。</p>
+<p>⑧rows</p>
+<p>根据表统计信息及索引选用情况大致估算出找到所需记录所要读取的行数。当然该值越小越好。</p>
+<p>⑨filtered</p>
+<p>百分比值，表示存储引擎返回的数据经过滤后，剩下多少满足查询条件记录数量的比例。</p>
+<p>⑩Extra</p>
+<p>显示十分重要的额外信息。其取值有以下几个：</p>
+<p>#1.Using filesort</p>
+<p>Using filesort表明mysql会对数据使用一个外部的索引排序，而不是按照表内的索引顺序进行读取。</p>
+<p>mysql中无法利用索引完成的排序操作称为“文件排序”。</p>
+<p>出现Using filesort就非常危险了，在数据量非常大的时候几乎“九死一生”。出现Using filesort尽快优化sql语句。</p>
+<p>deptname字段未建索引的情况。</p>
+<p>为deptname字段创建索引后。</p>
+<p>#2.Using temporary</p>
+<p>使用了临时表保存中间结果，常见于排序order by和分组查询group by。非常危险，“十死无生”，急需优化。</p>
+<p>将tb_emp中name的索引先删除，出现如下图结果，非常烂，Using filesort和Using temporary，“十死无生”。</p>
+<p>为name字段创建索引后。</p>
+<p>#3.Using index</p>
+<p>表明相应的select操作中使用了覆盖索引，避免访问表的额外数据行，效率不错。</p>
+<p>如果同时出现了Using where，表明索引被用来执行索引键值的查找。（where deptid=1）</p>
+<p>如果没有同时出现Using where，表明索引用来读取数据而非执行查找动作。</p>
+<p>删除tb_emp表中name和deptid字段的单独索引，创建复合索引。</p>
+<p>从这里给出覆盖索引的定义：select的数据列只从索引中就能取得数据，不必读取数据行。通过上面的例子理解：创建了（name，deptid）的复合索引，查询的时候也使用复合索引或部分，这就形成了覆盖索引。简记：查询使用复合索引，并且查询的列就是索引列，不能多，个数需对应。</p>
+<p>使用优先级Using index&gt;Using filesort（九死一生）&gt;Using temporary（十死无生）。也就说出现后面两项表明sql语句是非常烂的，急需优化！！！</p>
+<p>总结<br>explain（执行计划）包含的信息十分的丰富，着重关注以下几个字段信息。</p>
+<p>①id，select子句或表执行顺序，id相同，从上到下执行，id不同，id值越大，执行优先级越高。</p>
+<p>②type，type主要取值及其表示sql的好坏程度（由好到差排序）：system&gt;const&gt;eq_ref&gt;ref&gt;range&gt;index&gt;ALL。保证range，最好到ref。</p>
+<p>③key，实际被使用的索引列。</p>
+<p>④ref，关联的字段，常量等值查询，显示为const，如果为连接查询，显示关联的字段。</p>
+<p>⑤Extra，额外信息，使用优先级Using index&gt;Using filesort（九死一生）&gt;Using temporary（十死无生）。</p>
+<p>着重关注上述五个字段信息，对日常生产过程中调优十分有用。</p>
+]]></content>
+      <categories>
+        <category>Mysql</category>
+      </categories>
+      <tags>
+        <tag>Mysql</tag>
+      </tags>
+  </entry>
+</search>

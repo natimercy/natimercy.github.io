@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/eprofile-data.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/eprofile-data.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic%7CRoboto+Slab:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="next-config" data-name="main" type="application/json">{&quot;hostname&quot;:&quot;sys-spearmint.github.io&quot;,&quot;root&quot;:&quot;&#x2F;&quot;,&quot;images&quot;:&quot;&#x2F;images&quot;,&quot;scheme&quot;:&quot;Gemini&quot;,&quot;version&quot;:&quot;8.3.0&quot;,&quot;exturl&quot;:false,&quot;sidebar&quot;:{&quot;position&quot;:&quot;left&quot;,&quot;display&quot;:&quot;post&quot;,&quot;padding&quot;:18,&quot;offset&quot;:12},&quot;copycode&quot;:true,&quot;bookmark&quot;:{&quot;enable&quot;:false,&quot;color&quot;:&quot;#222&quot;,&quot;save&quot;:&quot;auto&quot;},&quot;fancybox&quot;:false,&quot;mediumzoom&quot;:false,&quot;lazyload&quot;:false,&quot;pangu&quot;:false,&quot;comments&quot;:{&quot;style&quot;:&quot;tabs&quot;,&quot;active&quot;:null,&quot;storage&quot;:true,&quot;lazyload&quot;:false,&quot;nav&quot;:null},&quot;motion&quot;:{&quot;enable&quot;:true,&quot;async&quot;:false,&quot;transition&quot;:{&quot;post_block&quot;:&quot;fadeIn&quot;,&quot;post_header&quot;:&quot;fadeInDown&quot;,&quot;post_body&quot;:&quot;fadeInDown&quot;,&quot;coll_header&quot;:&quot;fadeInLeft&quot;,&quot;sidebar&quot;:&quot;fadeInUp&quot;}},&quot;prism&quot;:false,&quot;i18n&quot;:{&quot;placeholder&quot;:&quot;搜索...&quot;,&quot;empty&quot;:&quot;没有找到任何搜索结果：${query}&quot;,&quot;hits_time&quot;:&quot;找到 ${hits} 个搜索结果（用时 ${time} 毫秒）&quot;,&quot;hits&quot;:&quot;找到 ${hits} 个搜索结果&quot;},&quot;path&quot;:&quot;&#x2F;search.xml&quot;,&quot;localsearch&quot;:{&quot;enable&quot;:true,&quot;trigger&quot;:&quot;auto&quot;,&quot;top_n_per_article&quot;:1,&quot;unescape&quot;:false,&quot;preload&quot;:false}}</script>
+<meta name="description" content="Java SecurityJava Security Architecture JDK 内建权限 API java.security.Permission java.security.PermissionCollection java.security.Permissions java.security.UnresolvedPermission java.io.FilePermission j">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java Security &amp; Spring Security">
+<meta property="og:url" content="https://sys-spearmint.github.io/2021/04/29/Security/index.html">
+<meta property="og:site_name" content="spearmint的博客">
+<meta property="og:description" content="Java SecurityJava Security Architecture JDK 内建权限 API java.security.Permission java.security.PermissionCollection java.security.Permissions java.security.UnresolvedPermission java.io.FilePermission j">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/filterchain.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/Spring-SecurityConfig.png">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fcc29744d-dd1b-42ab-9d36-3f7a6aa0bfea%2FUntitled.png?table=block&id=8298af09-c7e7-43cb-bef3-e2b356b91c1c&width=1630&userId=&cache=v2">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/image-20210429103200466.png">
+<meta property="og:image" content="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/multi-securityfilterchain.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/SecurityFilterChain.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/1.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/7.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/8.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/3.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/4.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/5.png">
+<meta property="og:image" content="https://sys-spearmint.github.io/2021/04/29/Security/6.png">
+<meta property="article:published_time" content="2021-04-29T02:00:00.000Z">
+<meta property="article:modified_time" content="2021-04-30T02:00:00.000Z">
+<meta property="article:author" content="spearmint">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Spring">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/filterchain.png">
+
+
+<link rel="canonical" href="https://sys-spearmint.github.io/2021/04/29/Security/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{&quot;sidebar&quot;:&quot;&quot;,&quot;isHome&quot;:false,&quot;isPost&quot;:true,&quot;lang&quot;:&quot;zh-CN&quot;,&quot;comments&quot;:true,&quot;permalink&quot;:&quot;https:&#x2F;&#x2F;sys-spearmint.github.io&#x2F;2021&#x2F;04&#x2F;29&#x2F;Security&#x2F;&quot;,&quot;path&quot;:&quot;2021&#x2F;04&#x2F;29&#x2F;Security&#x2F;&quot;,&quot;title&quot;:&quot;Java Security &amp; Spring Security&quot;}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">&quot;&quot;</script>
+<title>Java Security & Spring Security | spearmint的博客</title><script src="/js/config.js"></script>
+  
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<link rel="alternate" href="/atom.xml" title="spearmint的博客" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">spearmint的博客</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+        <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+        <li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">4</span></a></li>
+        <li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a></li>
+        <li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">6</span></a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Java-Security"><span class="nav-number">1.</span> <span class="nav-text">Java Security</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#JDK-%E5%86%85%E5%BB%BA%E6%9D%83%E9%99%90-API"><span class="nav-number">1.1.</span> <span class="nav-text">JDK 内建权限 API</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JDK-%E5%AE%89%E5%85%A8%E7%AD%96%E7%95%A5%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="nav-number">1.2.</span> <span class="nav-text">JDK 安全策略配置文件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BF%80%E6%B4%BB%E5%AE%89%E5%85%A8%E7%AE%A1%E7%90%86%E5%99%A8-SecurityManager"><span class="nav-number">1.3.</span> <span class="nav-text">激活安全管理器 - SecurityManager</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9D%83%E9%99%90%E7%9A%84-API"><span class="nav-number">1.4.</span> <span class="nav-text">自定义权限的 API</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC%E4%B8%89%E6%96%B9%E6%8B%93%E5%B1%95"><span class="nav-number">1.5.</span> <span class="nav-text">第三方拓展</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Tomcat-%E8%87%AA%E5%AE%9A%E4%B9%89-Policy-%E6%96%87%E4%BB%B6"><span class="nav-number">1.5.1.</span> <span class="nav-text">Tomcat 自定义 Policy 文件</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Spring-Security"><span class="nav-number">2.</span> <span class="nav-text">Spring Security</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F"><span class="nav-number">2.0.1.</span> <span class="nav-text">设计模式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Servlet-Filter"><span class="nav-number">2.1.</span> <span class="nav-text">Servlet Filter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-Web-DelegatingFilterProxy"><span class="nav-number">2.2.</span> <span class="nav-text">Spring Web DelegatingFilterProxy</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B4%E6%98%8E"><span class="nav-number">2.2.1.</span> <span class="nav-text">说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E6%96%B9%E5%BC%8F"><span class="nav-number">2.2.2.</span> <span class="nav-text">配置方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-number">2.2.3.</span> <span class="nav-text">初始化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ContextLoaderListener-V-S-DispatcherServlet"><span class="nav-number">2.2.4.</span> <span class="nav-text">ContextLoaderListener V.S DispatcherServlet</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-Web-GenericFilterBean"><span class="nav-number">2.3.</span> <span class="nav-text">Spring Web GenericFilterBean</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%9B%BE"><span class="nav-number">2.3.1.</span> <span class="nav-text">类图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E6%96%B9%E6%B3%95"><span class="nav-number">2.3.2.</span> <span class="nav-text">主要方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E7%89%B9%E7%82%B9"><span class="nav-number">2.3.3.</span> <span class="nav-text">实现特点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96%E6%96%B9%E6%B3%95"><span class="nav-number">2.3.4.</span> <span class="nav-text">初始化方法</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-Security-FilterChainProxy"><span class="nav-number">2.4.</span> <span class="nav-text">Spring Security FilterChainProxy</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B4%E6%98%8E-1"><span class="nav-number">2.4.1.</span> <span class="nav-text">说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E7%BB%93%E6%9E%84"><span class="nav-number">2.4.2.</span> <span class="nav-text">代码结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Spring-Security-SecurityFilterChain"><span class="nav-number">2.4.3.</span> <span class="nav-text">Spring Security SecurityFilterChain</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A7%94%E6%89%98%E5%85%B3%E7%B3%BB"><span class="nav-number">2.5.</span> <span class="nav-text">委托关系</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#SecurityFilterChain-%E9%80%89%E6%8B%A9"><span class="nav-number">2.5.1.</span> <span class="nav-text">SecurityFilterChain 选择</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B4%E6%98%8E-2"><span class="nav-number">2.5.2.</span> <span class="nav-text">说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B3%A8"><span class="nav-number">2.5.3.</span> <span class="nav-text">注</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-Security-%E6%9E%84%E5%BB%BA%E5%99%A8-WebSecurity-amp-HttpSecurity"><span class="nav-number">2.6.</span> <span class="nav-text">Spring Security 构建器 WebSecurity &amp;  HttpSecurity</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Spring-Security-%E8%A3%85%E9%85%8D"><span class="nav-number">2.7.</span> <span class="nav-text">Spring Security 装配</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#XML-%E8%A7%A3%E6%9E%90%E5%92%8C%E8%A3%85%E9%85%8D"><span class="nav-number">2.7.1.</span> <span class="nav-text">XML 解析和装配</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E5%8A%A8%E8%A3%85%E9%85%8D"><span class="nav-number">2.7.2.</span> <span class="nav-text">自动装配</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Q-amp-A"><span class="nav-number">2.8.</span> <span class="nav-text">Q &amp; A</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Q1%EF%BC%9ASecurityFilterChain-%E7%9A%84%E4%BC%98%E5%85%88%E7%BA%A7%E9%A1%BA%E5%BA%8F%EF%BC%9F"><span class="nav-number">2.8.1.</span> <span class="nav-text">Q1：SecurityFilterChain 的优先级顺序？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Q2%EF%BC%9AFilterChainProxy-%E4%B8%8E-SecurityFilterChain-%E7%9A%84%E5%85%B3%E8%81%94%E5%85%B3%E7%B3%BB%E6%98%AF-1-%E5%AF%B9-1%EF%BC%8C%E8%BF%98%E6%98%AF-1-%E5%AF%B9-N"><span class="nav-number">2.8.2.</span> <span class="nav-text">Q2：FilterChainProxy 与 SecurityFilterChain 的关联关系是 1 对 1，还是 1 对 N?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Q3%EF%BC%9A%E5%81%87%E8%AE%BE%E6%9C%89%E4%B8%A4%E4%B8%AA-WebSecurityConfigurerAdapter-Bean%EF%BC%8C%E5%B9%B6%E4%B8%94%E6%A0%87%E6%B3%A8%E4%BA%86%E4%B8%8D%E5%90%8C%E7%9A%84-Order%EF%BC%8C%E5%85%B6%E4%B8%AD%E4%B8%80%E4%B8%AA%E5%85%B3%E9%97%AD-CSRF%EF%BC%8C%E5%8F%A6%E4%B8%80%E4%B8%AA%E5%BC%80%E5%90%AF-CSRF%EF%BC%8C%E7%BB%93%E6%9E%9C%E5%A6%82%E4%BD%95%EF%BC%9F"><span class="nav-number">2.8.3.</span> <span class="nav-text">Q3：假设有两个 WebSecurityConfigurerAdapter Bean，并且标注了不同的 @Order，其中一个关闭 CSRF，另一个开启 CSRF，结果如何？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Q4%EF%BC%9ASecurityFilterChain-%E4%B8%AD%E5%85%B3%E8%81%94%E7%9A%84-M-%E4%B8%AA-Filter-%E6%98%AF-Servlet-%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%EF%BC%9F%E8%BF%98%E6%98%AF-Spring-IoC-%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86%EF%BC%9F"><span class="nav-number">2.8.4.</span> <span class="nav-text">Q4：SecurityFilterChain 中关联的 M 个 Filter 是 Servlet 容器管理生命周期？还是 Spring IoC 容器管理？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E8%AF%B4%E6%98%8E"><span class="nav-number">2.9.</span> <span class="nav-text">其他说明</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">spearmint</p>
+  <div class="site-description" itemprop="description">没有理想何必远方</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/sys-spearmint" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;sys-spearmint" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fas fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license site-overview-item animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/sys-spearmint" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://sys-spearmint.github.io/2021/04/29/Security/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="spearmint">
+      <meta itemprop="description" content="没有理想何必远方">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="spearmint的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java Security & Spring Security
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-04-29 10:00:00" itemprop="dateCreated datePublished" datetime="2021-04-29T10:00:00+08:00">2021-04-29</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2021-04-30 10:00:00" itemprop="dateModified" datetime="2021-04-30T10:00:00+08:00">2021-04-30</time>
+      </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+          ，
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/Spring/" itemprop="url" rel="index"><span itemprop="name">Spring</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+      </div>
+      <div class="post-meta">
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>22k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 &asymp;</span>
+      <span>20 分钟</span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <span id="more"></span>
+
+<h1 id="Java-Security"><a href="#Java-Security" class="headerlink" title="Java Security"></a>Java Security</h1><p><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-specTOC.fm.html">Java Security Architecture</a></p>
+<h2 id="JDK-内建权限-API"><a href="#JDK-内建权限-API" class="headerlink" title="JDK 内建权限 API"></a>JDK 内建权限 API</h2><ul>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19902">java.security.Permission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19905">java.security.PermissionCollection</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19911">java.security.Permissions</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a22515">java.security.UnresolvedPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19913">java.io.FilePermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a19915">java.net.SocketPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20057">java.security.BasicPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20107">java.util.PropertyPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20113">java.lang.RuntimePermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20327">java.awt.AWTPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a20353">java.net.NetPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26158">java.lang.reflect.ReflectPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26159">java.io.SerializablePermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26196">java.security.SecurityPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#a26221">java.security.AllPermission</a></strong></li>
+<li><strong><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/spec/security-spec.doc3.html#AuthPermission">javax.security.auth.AuthPermission</a></strong></li>
+</ul>
+<h2 id="JDK-安全策略配置文件"><a href="#JDK-安全策略配置文件" class="headerlink" title="JDK 安全策略配置文件"></a>JDK 安全策略配置文件</h2><ul>
+<li>文件路径：$JAVA_HOME/jre/lib/security/java.policy</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">grant codeBase <span class="string">&quot;file:<span class="variable">$&#123;&#123;java.ext.dirs&#125;</span>&#125;/*&quot;</span> &#123; permission java.security.AllPermission; &#125;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>格式：permission ${java.security.Permission 实现类} “${<a target="_blank" rel="noopener" href="http://permisson.name/">permisson.name</a>}”;</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">grant &#123; </span><br><span class="line">		permission java.lang.RuntimePermission <span class="string">&quot;stopThread&quot;</span>;</span><br><span class="line">		java.net.SocketPermission <span class="string">&quot;localhost:0&quot;</span>, <span class="string">&quot;listen&quot;</span>;</span><br><span class="line">		permission java.util.PropertyPermission <span class="string">&quot;java.version&quot;</span>, <span class="string">&quot;read&quot;</span>; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>java.ext.dirs 系统属性表示JVM 扩展的 ClassLoader 路径</p>
+<ul>
+<li>Bootstrap ClassLoader<ul>
+<li>System ClassLoader<ul>
+<li>App ClassLoader<ul>
+<li>Ext ClassLoader（ JDK 9 开始淘汰）</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<h2 id="激活安全管理器-SecurityManager"><a href="#激活安全管理器-SecurityManager" class="headerlink" title="激活安全管理器 - SecurityManager"></a>激活安全管理器 - SecurityManager</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.setSecurityManager(<span class="keyword">new</span> SecurityManager());</span><br></pre></td></tr></table></figure>
+
+<h2 id="自定义权限的-API"><a href="#自定义权限的-API" class="headerlink" title="自定义权限的 API"></a>自定义权限的 API</h2><ul>
+<li>Java 安全校验方法<ul>
+<li><code>SecurityManager#checkPermission(java.security.Permission);</code></li>
+<li><code>java.security.AccessController#checkPermission(java.security.Permission)</code></li>
+</ul>
+</li>
+<li>Java 鉴权方法<ul>
+<li><code>java.security.AccessController#doPrivileged(java.security.PrivilegedAction)</code> 以及重载</li>
+</ul>
+</li>
+</ul>
+<h2 id="第三方拓展"><a href="#第三方拓展" class="headerlink" title="第三方拓展"></a>第三方拓展</h2><p><a target="_blank" rel="noopener" href="http://tomcat.apache.org/tomcat-7.0-doc/security-manager-howto.html">Security Manager HOW-TO</a></p>
+<h3 id="Tomcat-自定义-Policy-文件"><a href="#Tomcat-自定义-Policy-文件" class="headerlink" title="Tomcat 自定义 Policy 文件"></a>Tomcat 自定义 Policy 文件</h3><ul>
+<li>位置：$CATALINA_HOME/conf/catalina.policy 中</li>
+</ul>
+<h1 id="Spring-Security"><a href="#Spring-Security" class="headerlink" title="Spring Security"></a>Spring Security</h1><p><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/#servlet-architecture">Spring Security Reference</a></p>
+<h3 id="设计模式"><a href="#设计模式" class="headerlink" title="设计模式"></a>设计模式</h3><p>基于拦截模式实现，比如利用 AOP，Servlet Filter</p>
+<h2 id="Servlet-Filter"><a href="#Servlet-Filter" class="headerlink" title="Servlet Filter"></a>Servlet Filter</h2><p><img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/filterchain.png" alt="filterchain"></p>
+<p>Servlet filter 调用链路根据 Filter 的顺序依次调用。传入参数为</p>
+<ul>
+<li>HttpServletRequest</li>
+<li>HttpServletResponse</li>
+<li>FilterChain</li>
+</ul>
+<p>Filter 的两个作用如下：</p>
+<ul>
+<li>对调用链路做拦截，可阻止不必要的请求进入下游 Filter 或 Servlet</li>
+<li>修改下游 Filter 或 Servlet 使用的 HttpServletRequest 或 HttpServletResponse</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// do something before the rest of the application</span></span><br><span class="line">    chain.doFilter(request, response); <span class="comment">// invoke the rest of the application</span></span><br><span class="line">    <span class="comment">// do something after the rest of the application</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Web-DelegatingFilterProxy"><a href="#Spring-Web-DelegatingFilterProxy" class="headerlink" title="Spring Web DelegatingFilterProxy"></a>Spring Web DelegatingFilterProxy</h2><h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><p>DelegatingFilterProxy 是 Spring Web 为应用提供的用于桥接 Servlet Filter组件和 Spring Filter Bean 的管道。</p>
+<p>实际的 Filter 为</p>
+<ul>
+<li>bean name 为 targetBeanName 的 Spring Filter Bean</li>
+</ul>
+<p>或</p>
+<ul>
+<li>Servlet Filter 对象 delegate</li>
+</ul>
+<h3 id="配置方式"><a href="#配置方式" class="headerlink" title="配置方式"></a>配置方式</h3><ul>
+<li><p>Servlet 标准方式，不会触发 Spring Bean 的生命周期</p>
+<ul>
+<li><p>web.xml</p>
+</li>
+<li><p>Servlet 3.0+ 的注解驱动</p>
+</li>
+<li><p>Servlet 3.0+ 的 API 编程</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">filter</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>DelegatingFilterProxy<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-class</span>&gt;</span>org.springframework.web.filter.DelegatingFilterProxy<span class="tag">&lt;/<span class="name">filter-class</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">init-param</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">param-name</span>&gt;</span>targetBeanName<span class="tag">&lt;/<span class="name">param-name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">param-value</span>&gt;</span>someFilter<span class="tag">&lt;/<span class="name">param-value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">init-param</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">filter</span>&gt;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p>Spring Bean 定义的方式定义 DelegatingFilterProxy，会触发 Spring Bean 的生命周期，不会触发 Filter 的 <code>init()</code>方法</p>
+</li>
+</ul>
+<h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">initFilterBean()</span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">initFilterBean</span><span class="params">()</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">		<span class="keyword">synchronized</span> (<span class="keyword">this</span>.delegateMonitor) &#123;</span><br><span class="line">			<span class="comment">// 判断 Filter 对象是否为空，如果不为空则跳过</span></span><br><span class="line">			<span class="keyword">if</span> (<span class="keyword">this</span>.delegate == <span class="keyword">null</span>) &#123;</span><br><span class="line">				<span class="comment">// 如果 Filter 对象为空，则获取 targetBeanName</span></span><br><span class="line">				<span class="keyword">if</span> (<span class="keyword">this</span>.targetBeanName == <span class="keyword">null</span>) &#123;</span><br><span class="line">          			<span class="comment">// 获取 target bean name, 先从 filterConfig 中获取 filter name，</span></span><br><span class="line">          			<span class="comment">// 如果 filterConfig 为空则使用 GenericFilterBean#beanName</span></span><br><span class="line">					<span class="keyword">this</span>.targetBeanName = getFilterName();</span><br><span class="line">				&#125;</span><br><span class="line">        		<span class="comment">// 获取 WebApplicationContext </span></span><br><span class="line">				WebApplicationContext wac = findWebApplicationContext();</span><br><span class="line">				<span class="keyword">if</span> (wac != <span class="keyword">null</span>) &#123;</span><br><span class="line">					<span class="comment">// 根据名称和类型查找 Filter</span></span><br><span class="line">					<span class="keyword">this</span>.delegate = initDelegate(wac);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">findWebApplicationContext()</span><br><span class="line"><span class="function"><span class="keyword">protected</span> WebApplicationContext <span class="title">findWebApplicationContext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">		<span class="keyword">if</span> (<span class="keyword">this</span>.webApplicationContext != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="comment">// 如果用户自己加入的 webApplicationContext </span></span><br><span class="line">			<span class="keyword">if</span> (<span class="keyword">this</span>.webApplicationContext <span class="keyword">instanceof</span> ConfigurableApplicationContext) &#123;</span><br><span class="line">				ConfigurableApplicationContext cac = (ConfigurableApplicationContext) <span class="keyword">this</span>.webApplicationContext;</span><br><span class="line">				<span class="keyword">if</span> (!cac.isActive()) &#123;</span><br><span class="line">					<span class="comment">// 则刷新当前容器</span></span><br><span class="line">					cac.refresh();</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> <span class="keyword">this</span>.webApplicationContext;</span><br><span class="line">		&#125;</span><br><span class="line">    	<span class="comment">// 从 ServletContext 中获取 WebApplicationContext</span></span><br><span class="line">		String attrName = getContextAttribute();</span><br><span class="line">		<span class="keyword">if</span> (attrName != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="keyword">return</span> WebApplicationContextUtils.getWebApplicationContext(getServletContext(), attrName);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> WebApplicationContextUtils.findWebApplicationContext(getServletContext());</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">initDelegate(WebApplicationContext wac)</span><br><span class="line"><span class="function"><span class="keyword">protected</span> Filter <span class="title">initDelegate</span><span class="params">(WebApplicationContext wac)</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">    	<span class="comment">// 根据 bean name 和 Filter 类型依赖查找 WebApplicationContext</span></span><br><span class="line">		String targetBeanName = getTargetBeanName();</span><br><span class="line">		Assert.state(targetBeanName != <span class="keyword">null</span>, <span class="string">&quot;No target bean name set&quot;</span>);</span><br><span class="line">		Filter delegate = wac.getBean(targetBeanName, Filter.class);</span><br><span class="line">		<span class="keyword">if</span> (isTargetFilterLifecycle()) &#123;</span><br><span class="line">			<span class="comment">// 显示调用 Filter 的 init() 方法</span></span><br><span class="line">			delegate.init(getFilterConfig());</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> delegate;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>判断 delegate 的 Filter 对象是否存在，如果补存在则执行下一步</li>
+<li>判断 targetBeanName 是否存在，存在则通过名称 + 类型的方式查找 Filter 并赋值给 delegate<ul>
+<li>获取 WebApplicationContext 依赖于 ContextLoaderListener 或 DispatcherServlet</li>
+</ul>
+</li>
+</ul>
+<h3 id="ContextLoaderListener-V-S-DispatcherServlet"><a href="#ContextLoaderListener-V-S-DispatcherServlet" class="headerlink" title="ContextLoaderListener V.S DispatcherServlet"></a>ContextLoaderListener V.S DispatcherServlet</h3><ul>
+<li>ContextLoaderListener  Root WebApplicationContext</li>
+<li>DispatcherServlet Child WebApplicationContext</li>
+<li>DispatcherServlet 本质是一个 Servlet，它拓展了 HttpServlet，每个 DispatcherServlet 定义了一个Spring web Application 并都与 WebApplicationContext 相关</li>
+<li>ContextLoaderListener 为 Spring 对 Servlet 监听器的封装，本质上还是 Servlet 监听器，它创建一个根应用程序上下文（ApplicationContext）,并与所有的 DispatcherServlet 上下创建的上下文共享</li>
+<li>在Spring Web应用程序中，有两种类型的容器，ApplicationContext 和 WebApplicationContext</li>
+<li>ApplicationContext 是由 ContextLoaderListener 创建并配置的或 web.xml</li>
+<li>而 WebApplicationContext 是 ApplicationContext 的子上下文环境。是由 DispatcherServlet 启动时创建配置的</li>
+<li>如果 web 应用程序没有配置 Listener，只配置了DispatcherServlet，web 容器启动时不会初始化 Spring Web 上下文，因为 Spring Web 是基于 Spring，没有配置Spring，所以也不会启动它的子上下文Spring Web</li>
+</ul>
+<p><img src="/2021/04/29/Security/Spring-SecurityConfig.png" alt="Spring-SecurityConfig"></p>
+<ul>
+<li><code>ContextLoaderListener</code> 创建根应用程序上下文</li>
+<li><code>DispatcherServlet</code> 为每个 servlet 创建一个子应用程序上下文</li>
+<li>子上下文可以访问根上下文中定义的 bean</li>
+<li>根上下文中的 Bean 无法直接访问子上下文中的 bean</li>
+<li>所有上下文都被添加到 ServletContext</li>
+<li>可以使用 <code>WebApplicationContextUtils</code> 类访问根上下文</li>
+</ul>
+<h2 id="Spring-Web-GenericFilterBean"><a href="#Spring-Web-GenericFilterBean" class="headerlink" title="Spring Web GenericFilterBean"></a>Spring Web GenericFilterBean</h2><h3 id="类图"><a href="#类图" class="headerlink" title="类图"></a>类图</h3><p><img src="https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fcc29744d-dd1b-42ab-9d36-3f7a6aa0bfea%2FUntitled.png?table=block&id=8298af09-c7e7-43cb-bef3-e2b356b91c1c&width=1630&userId=&cache=v2" alt="img"></p>
+<ul>
+<li>EnvironmentAware Environment 回调</li>
+<li>EnvironmentCapable 创建配置 Environment</li>
+<li>ServletContextAware ServletContext 回调</li>
+<li>BeanNameAware bean name 回调</li>
+<li>InitializingBean 初始化 Bean</li>
+<li>DisposableBean 销毁 bean</li>
+<li>实现 Filter ，可利用标准 Servlet Filter 的生命周期</li>
+</ul>
+<p>通过上面的实现可看出，GenericFilterBean 可被以下两个方式之一管理生命周期</p>
+<ul>
+<li>标准 Servlet 容器<ul>
+<li>Filter#init()<ul>
+<li>initFilterBean() 模板方法</li>
+</ul>
+</li>
+<li>Filter#destroy()</li>
+</ul>
+</li>
+<li>Spring IoC 容器<ul>
+<li>InitializingBean#afterPropertiesSet()<ul>
+<li>initFilterBean() 模板方法</li>
+</ul>
+</li>
+<li>DisposableBean#destroy()</li>
+</ul>
+</li>
+</ul>
+<h3 id="主要方法"><a href="#主要方法" class="headerlink" title="主要方法"></a>主要方法</h3><p><img src="/2021/04/29/Security/image-20210429103200466.png" alt="image-20210429103200466"></p>
+<h3 id="实现特点"><a href="#实现特点" class="headerlink" title="实现特点"></a>实现特点</h3><ul>
+<li>通常拓展 GenericFilterBean 的类并非传统的 Spring Bean，但它需要 Spring Bean 的生命周期</li>
+<li>GenericFilterBean 的实现往往是通过 web.xml 文件或 Servlet 3.0+ 注解或 API 注册</li>
+<li>属性的绑定通过 FilterConfig</li>
+</ul>
+<h3 id="初始化方法"><a href="#初始化方法" class="headerlink" title="初始化方法"></a>初始化方法</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">(FilterConfig filterConfig)</span> <span class="keyword">throws</span> ServletException </span>&#123;</span><br><span class="line">		Assert.notNull(filterConfig, <span class="string">&quot;FilterConfig must not be null&quot;</span>);</span><br><span class="line"></span><br><span class="line">		<span class="keyword">this</span>.filterConfig = filterConfig;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 将 FilterConfig 配置属性转为 Spring PropertyValues</span></span><br><span class="line">		PropertyValues pvs = <span class="keyword">new</span> FilterConfigPropertyValues(filterConfig, <span class="keyword">this</span>.requiredProperties);</span><br><span class="line">		<span class="keyword">if</span> (!pvs.isEmpty()) &#123;</span><br><span class="line">			<span class="keyword">try</span> &#123;</span><br><span class="line">				<span class="comment">// 获取给定目标对象的 BeanWrapper</span></span><br><span class="line">				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(<span class="keyword">this</span>);</span><br><span class="line">				<span class="comment">// 生成 ResourceLoader</span></span><br><span class="line">				ResourceLoader resourceLoader = <span class="keyword">new</span> ServletContextResourceLoader(filterConfig.getServletContext());</span><br><span class="line">				Environment env = <span class="keyword">this</span>.environment;</span><br><span class="line">				<span class="keyword">if</span> (env == <span class="keyword">null</span>) &#123;</span><br><span class="line">					env = <span class="keyword">new</span> StandardServletEnvironment();</span><br><span class="line">				&#125;</span><br><span class="line">				bw.registerCustomEditor(Resource.class, <span class="keyword">new</span> ResourceEditor(resourceLoader, env));</span><br><span class="line">				<span class="comment">// 交于子类定制 BeanWrapper</span></span><br><span class="line">				initBeanWrapper(bw);</span><br><span class="line">				<span class="comment">// 将 PropertyValues 注入到属性</span></span><br><span class="line">				bw.setPropertyValues(pvs, <span class="keyword">true</span>);</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">catch</span> (BeansException ex) &#123;</span><br><span class="line">				String msg = <span class="string">&quot;Failed to set bean properties on filter &#x27;&quot;</span> +</span><br><span class="line">					filterConfig.getFilterName() + <span class="string">&quot;&#x27;: &quot;</span> + ex.getMessage();</span><br><span class="line">				logger.error(msg, ex);</span><br><span class="line">				<span class="keyword">throw</span> <span class="keyword">new</span> NestedServletException(msg, ex);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// 模板方法，交于子类实现</span></span><br><span class="line">		initFilterBean();</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">			logger.debug(<span class="string">&quot;Filter &#x27;&quot;</span> + filterConfig.getFilterName() + <span class="string">&quot;&#x27; configured for use&quot;</span>);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Security-FilterChainProxy"><a href="#Spring-Security-FilterChainProxy" class="headerlink" title="Spring Security FilterChainProxy"></a>Spring Security FilterChainProxy</h2><h3 id="说明-1"><a href="#说明-1" class="headerlink" title="说明"></a>说明</h3><p>FilterChainProxy 是 Spring Security 提供的一个特殊的 Filter，它允许通过 SecurityFilterChain 委托给许多 Filter，FilterChainProxy 是一个 Bean，通常被 DelegatingFilterProxy 包装。</p>
+<h3 id="代码结构"><a href="#代码结构" class="headerlink" title="代码结构"></a>代码结构</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">doFilter()</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span></span></span><br><span class="line"><span class="function">			<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">		<span class="keyword">boolean</span> clearContext = request.getAttribute(FILTER_APPLIED) == <span class="keyword">null</span>;</span><br><span class="line">		<span class="keyword">if</span> (!clearContext) &#123;</span><br><span class="line">			<span class="comment">// 将 HttpServletRequest、HttpServletResponse、FilterChain 委托给 SecurityFilterChain 的 Filters 处理</span></span><br><span class="line">			doFilterInternal(request, response, chain);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			request.setAttribute(FILTER_APPLIED, Boolean.TRUE);</span><br><span class="line">			doFilterInternal(request, response, chain);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">catch</span> (RequestRejectedException ex) &#123;</span><br><span class="line">			<span class="keyword">this</span>.requestRejectedHandler.handle((HttpServletRequest) request, (HttpServletResponse) response, ex);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">finally</span> &#123;</span><br><span class="line">			<span class="comment">// 释放 ThreadLocal</span></span><br><span class="line">			SecurityContextHolder.clearContext();</span><br><span class="line">			request.removeAttribute(FILTER_APPLIED);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">doFilterInternal(HttpServletRequest ,HttpServletResponse, FilterChain)</span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doFilterInternal</span><span class="params">(ServletRequest request, ServletResponse response, FilterChain chain)</span></span></span><br><span class="line"><span class="function">			<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">		<span class="comment">// 装饰器模式装饰 HttpServletRequest</span></span><br><span class="line">		FirewalledRequest firewallRequest = <span class="keyword">this</span>.firewall.getFirewalledRequest((HttpServletRequest) request);</span><br><span class="line">		HttpServletResponse firewallResponse = <span class="keyword">this</span>.firewall.getFirewalledResponse((HttpServletResponse) response);</span><br><span class="line">		<span class="comment">// 获取 http 请求路径匹配到的 SecurityFilterChain 中的 Filters</span></span><br><span class="line">		List&lt;Filter&gt; filters = getFilters(firewallRequest);</span><br><span class="line">		<span class="keyword">if</span> (filters == <span class="keyword">null</span> || filters.size() == <span class="number">0</span>) &#123;</span><br><span class="line">			<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">				logger.trace(LogMessage.of(() -&gt; <span class="string">&quot;No security for &quot;</span> + requestLine(firewallRequest)));</span><br><span class="line">			&#125;</span><br><span class="line">			firewallRequest.reset();</span><br><span class="line">			chain.doFilter(firewallRequest, firewallResponse);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">			logger.debug(LogMessage.of(() -&gt; <span class="string">&quot;Securing &quot;</span> + requestLine(firewallRequest)));</span><br><span class="line">		&#125;</span><br><span class="line">		VirtualFilterChain virtualFilterChain = <span class="keyword">new</span> VirtualFilterChain(firewallRequest, chain, filters);</span><br><span class="line">		<span class="comment">// 委派依次调用 doFilter</span></span><br><span class="line">		virtualFilterChain.doFilter(firewallRequest, firewallResponse);</span><br><span class="line">	&#125;</span><br><span class="line">getFilters(HttpServletRequest request)</span><br><span class="line"><span class="function"><span class="keyword">private</span> List&lt;Filter&gt; <span class="title">getFilters</span><span class="params">(HttpServletRequest request)</span> </span>&#123;</span><br><span class="line">		<span class="keyword">int</span> count = <span class="number">0</span>;</span><br><span class="line">		<span class="keyword">for</span> (SecurityFilterChain chain : <span class="keyword">this</span>.filterChains) &#123;</span><br><span class="line">			<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">				logger.trace(LogMessage.format(<span class="string">&quot;Trying to match request against %s (%d/%d)&quot;</span>, chain, ++count,</span><br><span class="line">						<span class="keyword">this</span>.filterChains.size()));</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">// 过滤请求，获取到与当前请求相匹配的 SecurityFilterChain</span></span><br><span class="line">			<span class="keyword">if</span> (chain.matches(request)) &#123;</span><br><span class="line">				<span class="comment">// 直接返回匹配到的 Filters</span></span><br><span class="line">				<span class="keyword">return</span> chain.getFilters();</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Spring-Security-SecurityFilterChain"><a href="#Spring-Security-SecurityFilterChain" class="headerlink" title="Spring Security SecurityFilterChain"></a>Spring Security SecurityFilterChain</h3><p><img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/multi-securityfilterchain.png" alt="multi securityfilterchain"></p>
+<ul>
+<li>FilterChainProxy 使用 SecurityFilterChain 来确定应该为此请求调用哪个 Spring Security Filter</li>
+<li>SecurityFilterChain 中的 Security Filter 通常是 bean，但它们是通过 FilterChainProxy 而不是 DelegatingFilterProxy 注册的</li>
+<li>每个 SecurityFilterChain 可以是唯一的，并且可以隔离配置</li>
+</ul>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SecurityFilterChain` 唯一实现类 `org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.web</span>.DefaultSecurityFilterChain</span><br></pre></td></tr></table></figure>
+
+<p><code>DefaultSecurityFilterChain</code>关联对象</p>
+<ul>
+<li><code>org.springframework.security.web.util.matcher.RequestMatcher</code> http 请求匹配规则</li>
+<li><code>List&lt;Filter&gt;</code> Filter 对象列表</li>
+</ul>
+<p><code>DefaultSecurityFilterChain</code> 的构建方式</p>
+<ul>
+<li><p>```<br>org.springframework.security.config.annotation.web.builders.HttpSecurity</p>
+<figure class="highlight angelscript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">  - `SecurityBuilder&lt;DefaultSecurityFilterChain&gt;`</span><br><span class="line"></span><br><span class="line">### SecurityBuilder 的设计模式</span><br><span class="line"></span><br><span class="line">- 采用泛型参数来决定构建对象的类型，如</span><br><span class="line"></span><br><span class="line">  - `org.springframework.security.config.annotation.web.builders.HttpSecurity`</span><br><span class="line"></span><br><span class="line">  ```java</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="symbol">HttpSecurity</span> <span class="symbol">extends</span> <span class="symbol">AbstractConfiguredSecurityBuilder</span>&lt;<span class="symbol">DefaultSecurityFilterChain, <span class="symbol">HttpSecurity</span></span>&gt;</span><br><span class="line">  		<span class="symbol">implements</span> <span class="symbol">SecurityBuilder</span>&lt;<span class="symbol">DefaultSecurityFilterChain</span>&gt;, <span class="symbol">HttpSecurityBuilder</span>&lt;<span class="symbol">HttpSecurity</span>&gt;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>org.springframework.security.config.annotation.web.builders.WebSecurity</code></li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">WebSecurity</span> <span class="keyword">extends</span> <span class="title">AbstractConfiguredSecurityBuilder</span>&lt;<span class="title">Filter</span>, <span class="title">WebSecurity</span>&gt;</span></span><br><span class="line"><span class="class">		<span class="keyword">implements</span> <span class="title">SecurityBuilder</span>&lt;<span class="title">Filter</span>&gt;, <span class="title">ApplicationContextAware</span></span></span><br></pre></td></tr></table></figure></li>
+<li><p>```<br>org.springframework.security.config.annotation.AbstractSecurityBuilder#build</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">  - 模板方法 `org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.config</span><span class="selector-class">.annotation</span>.AbstractSecurityBuilder#doBuild`</span><br><span class="line"></span><br><span class="line">- ```</span><br><span class="line">  org<span class="selector-class">.springframework</span><span class="selector-class">.security</span><span class="selector-class">.config</span><span class="selector-class">.annotation</span>.AbstractConfiguredSecurityBuilder#doBuild</span><br></pre></td></tr></table></figure>
+
+<p> 中涵盖了 build 的构建周期</p>
+<ul>
+<li><p>初始化前 <code>beforeInit()</code> - 模板方法</p>
+</li>
+<li><p>初始化 </p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="title">init</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>迭代 <code>SecurityConfigurer#init(SecurityBuilder)</code> 方法</li>
+</ul>
+</li>
+<li><p>配置前 <code>beforeConfigure()</code> - 模板方法</p>
+</li>
+<li><p>配置</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="title">configure</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>迭代 <code>SecurityConfigurer#configure(SecurityBuilder)</code>方法</li>
+<li>其中被迭代的 <code>SecurityConfigure</code> 基本为 <code>WebSecurityConfigurerAdapter</code> 的 Bean</li>
+</ul>
+</li>
+<li><p>构建 <code>O result = performBuild()</code> - 模板方法</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="委托关系"><a href="#委托关系" class="headerlink" title="委托关系"></a>委托关系</h2><p>![img](security/delegate relation.png)</p>
+<h3 id="SecurityFilterChain-选择"><a href="#SecurityFilterChain-选择" class="headerlink" title="SecurityFilterChain 选择"></a>SecurityFilterChain 选择</h3><p><img src="/2021/04/29/Security/SecurityFilterChain.png" alt="img"></p>
+<h3 id="说明-2"><a href="#说明-2" class="headerlink" title="说明"></a>说明</h3><ul>
+<li>DelegatingFilterProxy 不一定为标准 Spring Bean</li>
+<li>FilterChainProxy 一定是 Spring 标准 Bean</li>
+<li>FilterChainProxy 扩展 GenericFilterBean 实现，意味着FilterChainProxy 是通过 Spring Bean 生命周期来初始化依赖的组件</li>
+<li>FilterChainProxy 与 SecurityFilterChain 的关联关系为1:N，一个SecurityFilterChain 关联了 M 个 Filter 实现</li>
+</ul>
+<h3 id="注"><a href="#注" class="headerlink" title="注"></a>注</h3><p>每个 SecurityFilterChain 中的 Filters 都有一个固定顺序，控制顺序的类为 <code>org.springframework.security.config.annotation.web.builders.FilterComparator</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">FilterComparator() &#123;</span><br><span class="line">		Step order = <span class="keyword">new</span> Step(INITIAL_ORDER, ORDER_STEP);</span><br><span class="line">		put(ChannelProcessingFilter.class, order.next());</span><br><span class="line">		order.next(); <span class="comment">// gh-8105</span></span><br><span class="line">		put(WebAsyncManagerIntegrationFilter.class, order.next());</span><br><span class="line">		put(SecurityContextPersistenceFilter.class, order.next());</span><br><span class="line">		put(HeaderWriterFilter.class, order.next());</span><br><span class="line">		put(CorsFilter.class, order.next());</span><br><span class="line">		put(CsrfFilter.class, order.next());</span><br><span class="line">		put(LogoutFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationRequestFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(X509AuthenticationFilter.class, order.next());</span><br><span class="line">		put(AbstractPreAuthenticatedProcessingFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.cas.web.CasAuthenticationFilter&quot;</span>, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.saml2.provider.service.servlet.filter.Saml2WebSsoAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(UsernamePasswordAuthenticationFilter.class, order.next());</span><br><span class="line">		order.next(); <span class="comment">// gh-8105</span></span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.openid.OpenIDAuthenticationFilter&quot;</span>, order.next());</span><br><span class="line">		put(DefaultLoginPageGeneratingFilter.class, order.next());</span><br><span class="line">		put(DefaultLogoutPageGeneratingFilter.class, order.next());</span><br><span class="line">		put(ConcurrentSessionFilter.class, order.next());</span><br><span class="line">		put(DigestAuthenticationFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(</span><br><span class="line">				<span class="string">&quot;org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(BasicAuthenticationFilter.class, order.next());</span><br><span class="line">		put(RequestCacheAwareFilter.class, order.next());</span><br><span class="line">		put(SecurityContextHolderAwareRequestFilter.class, order.next());</span><br><span class="line">		put(JaasApiIntegrationFilter.class, order.next());</span><br><span class="line">		put(RememberMeAuthenticationFilter.class, order.next());</span><br><span class="line">		put(AnonymousAuthenticationFilter.class, order.next());</span><br><span class="line">		<span class="keyword">this</span>.filterToOrder.put(<span class="string">&quot;org.springframework.security.oauth2.client.web.OAuth2AuthorizationCodeGrantFilter&quot;</span>,</span><br><span class="line">				order.next());</span><br><span class="line">		put(SessionManagementFilter.class, order.next());</span><br><span class="line">		put(ExceptionTranslationFilter.class, order.next());</span><br><span class="line">		put(FilterSecurityInterceptor.class, order.next());</span><br><span class="line">		put(SwitchUserFilter.class, order.next());</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Spring-Security-构建器-WebSecurity-amp-HttpSecurity"><a href="#Spring-Security-构建器-WebSecurity-amp-HttpSecurity" class="headerlink" title="Spring Security 构建器 WebSecurity &amp;  HttpSecurity"></a>Spring Security 构建器 WebSecurity &amp;  HttpSecurity</h2><ul>
+<li><code>HttpSecurity</code> 用于定义某些需要安全过滤的请求，也可以定义某些请求不需要安全过滤</li>
+<li><code>WebSecurity</code> 通过 <code>HttpSecurity</code> 定义请求安全过滤，也可通过其他方式忽略某些请求</li>
+<li><code>WebSecurity</code> 面向整个 Spring Security , <code>HttpSecurity</code> 仅是其一部分</li>
+<li><code>WebSecurity</code> 构建的是整个 Spring Security 的 <code>FilterChainProxy</code></li>
+<li><code>HttpSecurity</code> 构建的是 <code>FilterChainProxy</code> 中的一个 <code>SecurityFilterChain</code> ，如果需要构建多个 <code>SecurityFilterChain</code> 时，需生成多个 <code>HttpSecurity</code></li>
+</ul>
+<h2 id="Spring-Security-装配"><a href="#Spring-Security-装配" class="headerlink" title="Spring Security 装配"></a>Spring Security 装配</h2><h3 id="XML-解析和装配"><a href="#XML-解析和装配" class="headerlink" title="XML 解析和装配"></a>XML 解析和装配</h3><figure class="highlight reasonml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.security.config.http.HttpSecurityBeanDefinitionParser#registerFilterChainProxyIfNecessary</span><br><span class="line">static void register<span class="constructor">FilterChainProxyIfNecessary(ParserContext <span class="params">pc</span>, Object <span class="params">source</span>)</span> &#123;</span><br><span class="line">		BeanDefinitionRegistry registry = pc.get<span class="constructor">Registry()</span>;</span><br><span class="line">		<span class="keyword">if</span> (registry.contains<span class="constructor">BeanDefinition(BeanIds.FILTER_CHAIN_PROXY)</span>) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// Not already registered, so register the list of filter chains and the</span></span><br><span class="line">		<span class="comment">// FilterChainProxy</span></span><br><span class="line">		BeanDefinition listFactoryBean = <span class="keyword">new</span> <span class="constructor">RootBeanDefinition(ListFactoryBean.<span class="params">class</span>)</span>;</span><br><span class="line">		listFactoryBean.get<span class="constructor">PropertyValues()</span>.add(<span class="string">&quot;sourceList&quot;</span>, <span class="keyword">new</span> <span class="constructor">ManagedList()</span>);</span><br><span class="line">		pc.register<span class="constructor">BeanComponent(<span class="params">new</span> BeanComponentDefinition(<span class="params">listFactoryBean</span>, BeanIds.FILTER_CHAINS)</span>);</span><br><span class="line">		<span class="comment">// 构建 FilterChainProxy 对象的 BeanDefinitionBuilder</span></span><br><span class="line">		BeanDefinitionBuilder fcpBldr = <span class="module-access"><span class="module"><span class="identifier">BeanDefinitionBuilder</span>.</span></span>root<span class="constructor">BeanDefinition(FilterChainProxy.<span class="params">class</span>)</span>;</span><br><span class="line">		<span class="comment">// 属性填充</span></span><br><span class="line">		fcpBldr.get<span class="constructor">RawBeanDefinition()</span>.set<span class="constructor">Source(<span class="params">source</span>)</span>;</span><br><span class="line">		fcpBldr.add<span class="constructor">ConstructorArgReference(BeanIds.FILTER_CHAINS)</span>;</span><br><span class="line">		fcpBldr.add<span class="constructor">PropertyValue(<span class="string">&quot;filterChainValidator&quot;</span>, <span class="params">new</span> RootBeanDefinition(DefaultFilterChainValidator.<span class="params">class</span>)</span>);</span><br><span class="line">		BeanDefinition fcpBean = fcpBldr.get<span class="constructor">BeanDefinition()</span>;</span><br><span class="line">		pc.register<span class="constructor">BeanComponent(<span class="params">new</span> BeanComponentDefinition(<span class="params">fcpBean</span>, BeanIds.FILTER_CHAIN_PROXY)</span>);</span><br><span class="line">		registry.register<span class="constructor">Alias(BeanIds.FILTER_CHAIN_PROXY, BeanIds.SPRING_SECURITY_FILTER_CHAIN)</span>;</span><br><span class="line">		BeanDefinitionBuilder requestRejected = BeanDefinitionBuilder</span><br><span class="line">				.root<span class="constructor">BeanDefinition(RequestRejectedHandlerPostProcessor.<span class="params">class</span>)</span>;</span><br><span class="line">		requestRejected.set<span class="constructor">Role(BeanDefinition.ROLE_INFRASTRUCTURE)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(<span class="string">&quot;requestRejectedHandler&quot;</span>)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(BeanIds.FILTER_CHAIN_PROXY)</span>;</span><br><span class="line">		requestRejected.add<span class="constructor">ConstructorArgValue(<span class="string">&quot;requestRejectedHandler&quot;</span>)</span>;</span><br><span class="line">		AbstractBeanDefinition requestRejectedBean = requestRejected.get<span class="constructor">BeanDefinition()</span>;</span><br><span class="line">    	<span class="comment">// 生成 bean name</span></span><br><span class="line">		String requestRejectedPostProcessorName = pc.get<span class="constructor">ReaderContext()</span>.generate<span class="constructor">BeanName(<span class="params">requestRejectedBean</span>)</span>;</span><br><span class="line">		<span class="comment">// 注册 bean</span></span><br><span class="line">		registry.register<span class="constructor">BeanDefinition(<span class="params">requestRejectedPostProcessorName</span>, <span class="params">requestRejectedBean</span>)</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="自动装配"><a href="#自动装配" class="headerlink" title="自动装配"></a>自动装配</h3><figure class="highlight reasonml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer#insertSpringSecurityFilterChain</span><br><span class="line"><span class="keyword">private</span> void insert<span class="constructor">SpringSecurityFilterChain(ServletContext <span class="params">servletContext</span>)</span> &#123;</span><br><span class="line">		String filterName = DEFAULT_FILTER_NAME;</span><br><span class="line">		<span class="comment">// 创建 DelegatingFilterProxy</span></span><br><span class="line">		DelegatingFilterProxy springSecurityFilterChain = <span class="keyword">new</span> <span class="constructor">DelegatingFilterProxy(<span class="params">filterName</span>)</span>;</span><br><span class="line">		String contextAttribute = get<span class="constructor">WebApplicationContextAttribute()</span>;</span><br><span class="line">		<span class="keyword">if</span> (contextAttribute != null) &#123;</span><br><span class="line">			springSecurityFilterChain.set<span class="constructor">ContextAttribute(<span class="params">contextAttribute</span>)</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 动态加入 Filters</span></span><br><span class="line">		register<span class="constructor">Filter(<span class="params">servletContext</span>, <span class="params">true</span>, <span class="params">filterName</span>, <span class="params">springSecurityFilterChain</span>)</span>;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>AbstractSecurityWebApplicationInitializer</code> 实现了 Spring Web 的 <code>WebApplicationInitializer</code>，而 <code>WebApplicationInitializer</code> 被桥接到 <code>SpringServletContainerInitializer</code>, 同时 <code>SpringServletContainerInitializer</code> 实现了 Servlet 的 <code>ServletContainerInitializer</code>，因此当 web 容器启动时 <code>AbstractSecurityWebApplicationInitializer</code> 的 <code>onStartup(ServletContext servletContext)</code> 方法被执行。</p>
+</blockquote>
+<h2 id="Q-amp-A"><a href="#Q-amp-A" class="headerlink" title="Q &amp; A"></a>Q &amp; A</h2><h3 id="Q1：SecurityFilterChain-的优先级顺序？"><a href="#Q1：SecurityFilterChain-的优先级顺序？" class="headerlink" title="Q1：SecurityFilterChain 的优先级顺序？"></a>Q1：SecurityFilterChain 的优先级顺序？</h3><p><strong>A：</strong>应用程序每声明一个 <code>WebSecurityConfigurerAdapter</code> 类型的 Bean，都会产生一个 <code>SecurityFilterChain</code> ，Spring 根据应用程序标明的 @Order 或 Ordered 初始化和存储 <code>WebSecurityConfigurerAdapter</code> ，因此在 <code>FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 遍历匹配时是根据应用程序定义的 order 。</p>
+<h3 id="Q2：FilterChainProxy-与-SecurityFilterChain-的关联关系是-1-对-1，还是-1-对-N"><a href="#Q2：FilterChainProxy-与-SecurityFilterChain-的关联关系是-1-对-1，还是-1-对-N" class="headerlink" title="Q2：FilterChainProxy 与 SecurityFilterChain 的关联关系是 1 对 1，还是 1 对 N?"></a>Q2：FilterChainProxy 与 SecurityFilterChain 的关联关系是 1 对 1，还是 1 对 N?</h3><p><strong>A：</strong>1 对 N，详见章节 <strong>Spring Security SecurityFilterChain</strong></p>
+<h3 id="Q3：假设有两个-WebSecurityConfigurerAdapter-Bean，并且标注了不同的-Order，其中一个关闭-CSRF，另一个开启-CSRF，结果如何？"><a href="#Q3：假设有两个-WebSecurityConfigurerAdapter-Bean，并且标注了不同的-Order，其中一个关闭-CSRF，另一个开启-CSRF，结果如何？" class="headerlink" title="Q3：假设有两个 WebSecurityConfigurerAdapter Bean，并且标注了不同的 @Order，其中一个关闭 CSRF，另一个开启 CSRF，结果如何？"></a>Q3：假设有两个 <code>WebSecurityConfigurerAdapter</code> Bean，并且标注了不同的 @Order，其中一个关闭 CSRF，另一个开启 CSRF，结果如何？</h3><p><strong>测试</strong></p>
+<p><strong>Order 为 9998 的 SecurityConfig3，对 <code>/disable/\*</code> 请求路径开启 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(9998)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig3</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/disable/*&quot;</span>).csrf();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Order 为 9999 的 SecurityConfig2，对 <code>/disable/\*</code> 请求路径关闭 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(9999)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig2</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/disable/*&quot;</span>).disable();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Order 为 10000 的 SecurityConfig，对 <code>/enable</code> 请求路径开启 csrf。</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@Order(10000)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http.antMatcher(<span class="string">&quot;/enable&quot;</span>).csrf();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(WebSecurity web)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.configure(web);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2021/04/29/Security/1.png" alt="img"></p>
+<ul>
+<li>debug 可以看到 order 为 9998 且开启 csrf 的 config 放在首位，path /disable/*</li>
+<li>第二个为 9999 且关闭 csrf 的 config，path：/disable/*</li>
+<li>第三个为10000 开启 csrf 的 config，path：/enable</li>
+</ul>
+<p><img src="/2021/04/29/Security/7.png" alt="img"></p>
+<p><img src="/2021/04/29/Security/8.png" alt="img"></p>
+<ul>
+<li>请求 /disable/2 时，会进入 <code>org.springframework.security.web.FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 方法。</li>
+<li>遍历选择 <code>SecurityFilterChain</code> 时，会返回第一个被命中的。</li>
+</ul>
+<p><img src="/2021/04/29/Security/3.png" alt="img"></p>
+<p><strong>由上面测试可得出，当设置相同RequestMatcher 的不同 <code>SecurityFilterChain</code> （安全策略）时，会根据应用程序定义的顺序选择，顺序优先的将被执行，排在后面的不会被执行。</strong></p>
+<h3 id="Q4：SecurityFilterChain-中关联的-M-个-Filter-是-Servlet-容器管理生命周期？还是-Spring-IoC-容器管理？"><a href="#Q4：SecurityFilterChain-中关联的-M-个-Filter-是-Servlet-容器管理生命周期？还是-Spring-IoC-容器管理？" class="headerlink" title="Q4：SecurityFilterChain 中关联的 M 个 Filter 是 Servlet 容器管理生命周期？还是 Spring IoC 容器管理？"></a>Q4：SecurityFilterChain 中关联的 M 个 Filter 是 Servlet 容器管理生命周期？还是 Spring IoC 容器管理？</h3><p><strong>A：</strong></p>
+<ul>
+<li><strong>Spring IoC  容器管理，SecurityFilterChain 关联的 Filters 基本都继承了 GenericFilterBean，而 GenericFilterBean 实现的 Servlet Filter <code>init(FilterConfig filterConfig)</code> 方法未曾被子类覆盖，而且 <code>GenericFilterBean#init(FilterConfig filterConfig)</code> 方法中调用的模板方法 <code>initFilterBean()</code> 仅被 <code>DelegatingFilterProxy</code> 实现，如下图。</strong></li>
+</ul>
+<p><img src="/2021/04/29/Security/4.png" alt="img"></p>
+<ul>
+<li><strong>SecurityFilterChain 关联的 Filters 由 <code>FilterComparator</code> 创建， <code>FilterComparator</code> 被 <code>HttpSecurity</code> 创建，而 <code>HttpSecurity</code> 是被Spring IoC 容器管理生命周期。</strong></li>
+</ul>
+<h2 id="其他说明"><a href="#其他说明" class="headerlink" title="其他说明"></a>其他说明</h2><p>Spring Security 5.4+ 版本可以不需继承 <code>WebSecurityConfigurerAdapter</code> 便可配置 <code>HttpSercurity</code>。</p>
+<p><strong>原配置方式如下</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityConfig</span> <span class="keyword">extends</span> <span class="title">WebSecurityConfigurerAdapter</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">configure</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        http</span><br><span class="line">            .antMatcher(<span class="string">&quot;/**&quot;</span>).csrf().disable();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>现配置方式可选为</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">BeanConfig</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> SecurityFilterChain <span class="title">filterChain2</span><span class="params">(HttpSecurity http)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> http.antMatcher(<span class="string">&quot;/**&quot;</span>).csrf().disable()</span><br><span class="line">                .build();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>新配置方式将配置和适配器 Adapter 解耦，同时 <code>HttpSecurity</code> 是自动注入。 <code>HttpSecurity</code> 的 Bean 创建已由内部包装。</p>
+<figure class="highlight haxe"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.security.config.annotation.web.configuration.HttpSecurityConfiguration</span><br><span class="line">@Bean(HTTPSECURITY_BEAN_NAME)</span><br><span class="line">@Scope(<span class="string">&quot;prototype&quot;</span>)</span><br><span class="line">HttpSecurity httpSecurity() throws Exception &#123;</span><br><span class="line">	WebSecurityConfigurerAdapter.LazyPasswordEncoder passwordEncoder = <span class="keyword">new</span> <span class="type">WebSecurityConfigurerAdapter</span>.LazyPasswordEncoder(</span><br><span class="line">			<span class="built_in">this</span>.context);</span><br><span class="line">	AuthenticationManagerBuilder authenticationBuilder = <span class="keyword">new</span> <span class="type">WebSecurityConfigurerAdapter</span>.DefaultPasswordEncoderAuthenticationManagerBuilder(</span><br><span class="line">			<span class="built_in">this</span>.objectPostProcessor, passwordEncoder);</span><br><span class="line">	authenticationBuilder.parentAuthenticationManager(authenticationManager());</span><br><span class="line">	HttpSecurity http = <span class="keyword">new</span> <span class="type">HttpSecurity</span>(<span class="built_in">this</span>.objectPostProcessor, authenticationBuilder, createSharedObjects());</span><br><span class="line">	<span class="comment">// @formatter:off</span></span><br><span class="line">	http</span><br><span class="line">		.csrf(withDefaults())</span><br><span class="line">		.addFilter(<span class="keyword">new</span> <span class="type">WebAsyncManagerIntegrationFilter</span>())</span><br><span class="line">		.exceptionHandling(withDefaults())</span><br><span class="line">		.headers(withDefaults())</span><br><span class="line">		.sessionManagement(withDefaults())</span><br><span class="line">		.securityContext(withDefaults())</span><br><span class="line">		.requestCache(withDefaults())</span><br><span class="line">		.anonymous(withDefaults())</span><br><span class="line">		.servletApi(withDefaults())</span><br><span class="line">		.logout(withDefaults())</span><br><span class="line">		.apply(<span class="keyword">new</span> <span class="type">DefaultLoginPageConfigurer</span>&lt;&gt;());</span><br><span class="line">	<span class="comment">// @formatter:on</span></span><br><span class="line">	<span class="keyword">return</span> http;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/2021/04/29/Security/5.png" alt="img"></p>
+<p><img src="/2021/04/29/Security/6.png" alt="img"></p>
+<p>HttpSecurity 是通过原型模式生成的，因此应用每次生成 <code>SecurityFilterChain</code>  Bean 时，注入的 HttpSecurity 都为不同对象。</p>
+<p><code>SecurityFilterChain</code> 的顺序说明，当RequestMatcher 相同时</p>
+<ul>
+<li>可通过 <code>@Order</code> 注明每个 <code>SecurityFilterChain</code> Bean 的顺序，该顺序将影响<code>FilterChainProxy#getFilters(javax.servlet.http.HttpServletRequest)</code> 的筛选，首先被命中的<code>SecurityFilterChain</code> 作为执行者，后面的将不被执行。</li>
+<li>同 Configuration 类中定义不同的 <code>SecurityFilterChain</code> Bean 且未标明顺序或顺序标注相同时，以方法定义的顺序由上往下存储在 <code>FilterChainProxy#filterChains</code>中。</li>
+<li>不同 Configuration 类定义不同的 <code>SecurityFilterChain</code> Bean 且未标明顺序或顺序标注相同时，spring根据类文件的顺序加载 Bean，可能会因 Configuration 类的加载顺序不同，导致到安全策略的执行不可控，开发者需自己去辨别哪个应该在前。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>spearmint
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="https://sys-spearmint.github.io/2021/04/29/Security/" title="Java Security &amp; Spring Security">https://sys-spearmint.github.io/2021/04/29/Security/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"><i class="fa fa-tag"></i> Java</a>
+              <a href="/tags/Spring/" rel="tag"><i class="fa fa-tag"></i> Spring</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2021/04/27/Mysql%20Explain/" rel="prev" title="Mysql Explain">
+                  <i class="fa fa-chevron-left"></i> Mysql Explain
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/04/30/windows%20%E5%91%BD%E4%BB%A4%E8%A1%8C%E4%B8%8B%E7%94%A8netsh%20%E5%AE%9E%E7%8E%B0%E7%AB%AF%E5%8F%A3%E8%BD%AC%E5%8F%91(%E7%AB%AF%E5%8F%A3%E6%98%A0%E5%B0%84)/" rel="next" title="windows 命令行下用netsh 实现端口转发(端口映射)">
+                  windows 命令行下用netsh 实现端口转发(端口映射) <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div><script src="/js/comments.js"></script>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">spearmint</span>
+</div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+      <span>站点总字数：</span>
+    <span title="站点总字数">78k</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+<script src="/js/third-party/search/local-search.js"></script>
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+<script class="next-config" data-name="utterances" type="application/json">{&quot;enable&quot;:true,&quot;repo&quot;:&quot;sys-spearmint&#x2F;sys-spearmint.github.io&quot;,&quot;issue_term&quot;:&quot;pathname&quot;,&quot;theme&quot;:&quot;github-light&quot;,&quot;cdn&quot;:&quot;https:&#x2F;&#x2F;utteranc.es&#x2F;client.js&quot;}</script>
+<script src="/js/third-party/comments/utterances.js"></script>
+
+</body>
+</html>
