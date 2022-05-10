@@ -3,11 +3,11 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: spearmint的博客
+title: native-people的博客
 subtitle: ''
 description: 没有理想何必远方
 keywords:
-author: spearmint
+author: native-people
 #language: en
 language: zh-CN
 timezone: Asia/Shanghai #中国的时区，不要乱改城市
